@@ -10,7 +10,7 @@ buildscript {
 }
 
 group 'com.rnett'
-version '1.0-SNAPSHOT'
+version '1.0.0'
 
 apply plugin: 'kotlin'
 
@@ -23,6 +23,7 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile 'com.github.cesarferreira:kotlin-pluralizer:0.2.9'
+    compile 'no.tornado:tornadofx:1.7.16'
 }
 
 compileKotlin {
