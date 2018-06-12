@@ -1,4 +1,4 @@
-# ExposedDaoGen
+# Exposed DAO Code Generator
 Quick and dirty Kotlin Exposed DAO code generator.  Emphasis on quick and dirty.
 
 A script I'm using to generate DAO code, thought it could be usefull.  It probably won't work right away (it only supports the data I needed), but should be fairly easy to adapt.
