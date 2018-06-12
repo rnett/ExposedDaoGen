@@ -15,4 +15,6 @@ Automatically copies output to clipboard.
 
 3. Support more types
 
-4. Support for non-int primary keys and non-int clustered primary keys (waiting on Exposed clustered key support).
+4. Support clustered forigen keys (might need to wayt on Exposed).
+
+5. Support for non-int primary keys and non-int clustered primary keys (waiting on Exposed clustered key support).
