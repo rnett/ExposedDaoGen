@@ -1,5 +1,5 @@
 buildscript {
-    ext.kotlin_version = '1.2.41'
+    ext.kotlin_version = '1.2.71'
 
     repositories {
         mavenCentral()
@@ -24,6 +24,7 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile 'com.github.cesarferreira:kotlin-pluralizer:0.2.9'
     compile 'no.tornado:tornadofx:1.7.16'
+    compile "org.postgresql:postgresql:42.2.5"
 }
 
 compileKotlin {

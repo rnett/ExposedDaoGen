@@ -24,6 +24,7 @@ fun main(args: Array<String>) {
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.IntIdTable
 import org.jetbrains.exposed.dao.EntityID
+import org.jetbrains.exposed.sql.transactions.transaction
 
 
 """
@@ -84,12 +85,15 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
     val manyToOne: List<ForigenKey> by lazy { foreignKeys.filter { !it.many } }
     val oneToMany: List<ForigenKey> by lazy { foreignKeys.filter { it.many } }
 
+
+    val columns: List<DaoColumn> by lazy { dataColumns + manyToOne + oneToMany }
+
     fun addReferencingKey(rk: ForigenKey) {
         foreignKeys.add(ForigenKey(
-                "${className}_${rk.className.pluralize()}",
+                "${className}_${rk.className.pluralize()}_${rk.name}",
                 "${rk.className}",
                 "${rk.objectName}",
-                "${rk.referenceColumn}",
+                "${rk.name}",
                 true,
                 objectName, className
         ))
@@ -141,7 +145,7 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
 
 
         // columns
-        sb.appendln("\n\t\\\\ Database columns\n\n")
+        sb.appendln("\n\t// Database columns\n\n")
 
         dataColumns.joinTo(sb, "\n") { "\t${it.objectString()}" }
 
@@ -149,10 +153,10 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
 
 
         // foreign keys
-        sb.appendln("\t\\\\ Foreign keys\n")
+        sb.appendln("\t// Foreign keys\n")
 
         if (manyToOne.count() > 0) {
-            sb.appendln("\t\\\\ Many to One")
+            sb.appendln("\t// Many to One")
 
             manyToOne.joinTo(sb, "\n") { "\t" + it.objectString() }
 
@@ -164,7 +168,7 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
         }
 
         if (oneToMany.count() > 0) {
-            sb.appendln("\t\\\\ One to Many (not present in object)")
+            sb.appendln("\t// One to Many (not present in object)")
 
             sb.append("\n")
 
@@ -172,7 +176,7 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
 
         sb.append("\n")
 
-        sb.appendln("\t\\\\ Helper methods\n")
+        sb.appendln("\t// Helper methods\n")
 
 
         // idFromPKs(): clustered primary key helper function
@@ -192,11 +196,11 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
         // findFromPKs(): there to help with clustered primary keys, put in everything for consistency
         if(primaryKeys.size <= 1){
             sb.append("\tfun findFromPKs(${primaryKeys.joinToString(", ") { it.name + ": Int" }}): ${className}? {\n")
-            sb.append("\t\treturn ${className}.findById(${primaryKeys.joinToString(", ")})\n\t}\n")
+            sb.append("\t\treturn ${className}.findById(${primaryKeys.joinToString(", ") { it.name }})\n\t}\n")
 
         } else {
             sb.append("\tfun findFromPKs(${primaryKeys.joinToString(", ") { it.name + ": Int" }}): ${className}? {\n")
-            sb.append("\t\treturn ${className}.findById(idFromPKs(${primaryKeys.joinToString(", ")}))\n\t}\n")
+            sb.append("\t\treturn ${className}.findById(idFromPKs(${primaryKeys.joinToString(", ") { it.name }}))\n\t}\n")
         }
 
 
@@ -215,17 +219,17 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
 
 
         // fields
-        sb.appendln("\t\\\\ Database columns\n")
+        sb.appendln("\t// Database columns\n")
 
         dataColumns.joinTo(sb, "\n") { "\t" + it.classString() }
 
         sb.append("\n\n\n")
 
 
-        sb.appendln("\t\\\\ Foreign keys\n")
+        sb.appendln("\t// Foreign keys\n")
 
         if (manyToOne.count() > 0) {
-            sb.appendln("\t\\\\ Many to One")
+            sb.appendln("\t// Many to One")
 
             manyToOne.joinTo(sb, "\n") { "\t" + it.classString() }
             sb.append("\n")
@@ -236,7 +240,7 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
         }
 
         if (oneToMany.count() > 0) {
-            sb.appendln("\t\\\\ One to Many")
+            sb.appendln("\t// One to Many")
 
             oneToMany.joinTo(sb, "\n") { "\t" + it.classString() }
             sb.append("\n")
@@ -245,13 +249,28 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
 
         sb.append("\n\n")
 
-        sb.appendln("\t\\\\ Helper Methods\n")
+        sb.appendln("\t// Helper Methods\n")
 
         // toString(): overridden if there is a name column
         if (dataColumns.count { it.name.contains("name", true) } > 0) {
-            sb.append("\toverride fun toString(): String{\n\t\treturn this.${dataColumns.filter { it.name.contains("name", true) }.first().name}\n\t}")
+            sb.append("\toverride fun toString(): String{\n\t\treturn this.${dataColumns.filter { it.name.contains("name", true) }.first().name}\n\t}\n\n")
+        }
+        sb.append("\toverride fun equals(other: Any?): Boolean {\n")
+        sb.append("\t\tif(other == null || other !is $className)\n")
+        sb.append("\t\t\treturn false\n\t\n")
+        sb.append("\t\tother as $className\n")
+        sb.append("\t\treturn ${primaryKeys.joinToString(" && ") { "other.${it.name} == ${it.name}" }}\n")
+        sb.append("\t}\n\n")
+
+        sb.append("\toverride fun hashCode(): Int {\n")
+
+        if (primaryKeys.size > 1) {
+            sb.append("\t\treturn transaction { $objectName.idFromPKs(${primaryKeys.joinToString(", ") { it.name }}) }\n")
+        } else {
+            sb.append("\t\treturn ${primaryKeys.first().name}\n")
         }
 
+        sb.append("\t}\n\n")
 
         sb.append("\n}\n")
 
@@ -286,7 +305,7 @@ class DaoTable(val objectName: String, val className: String, columns: List<DaoC
 
 }
 
-abstract sealed class DaoColumn(val name: String, val objectName: String, val className: String = objectName.singularize()) {
+sealed class DaoColumn(val name: String, val objectName: String, val className: String = objectName.singularize()) {
 
     abstract fun displayString(): String
     abstract fun objectString(): String
@@ -414,7 +433,7 @@ abstract sealed class DaoColumn(val name: String, val objectName: String, val cl
 open class DataColumn(name: String, val type: String, var primaryKey: Boolean = false, objectName: String, className: String = objectName.singularize()) : DaoColumn(name, objectName, className) {
     override fun classString() = "var $name by $objectName.$name"
 
-    override fun objectString() = "val $name = $type($name)${if (primaryKey) ".primaryKey()" else ""}"
+    override fun objectString() = "val $name = $type(\"$name\")${if (primaryKey) ".primaryKey()" else ""}"
 
     override fun displayString() = "$name : $type"
 
@@ -423,7 +442,7 @@ open class DataColumn(name: String, val type: String, var primaryKey: Boolean = 
 class DataColumnWithArgs(name: String, type: String, primaryKey: Boolean = false, objectName: String, className: String = objectName.singularize(), val args: List<Any>) : DataColumn(name, type, primaryKey, objectName, className) {
     override fun classString() = "var $name by $objectName.$name"
 
-    override fun objectString() = "var $name = $type($name, ${args.joinToString(", ")})${if (primaryKey) ".primaryKey()" else ""}"
+    override fun objectString() = "var $name = $type(\"$name\", ${args.joinToString(", ")})${if (primaryKey) ".primaryKey()" else ""}"
 
     override fun displayString() = "$name : $type(${args.joinToString(", ")})"
 }
@@ -446,7 +465,7 @@ class PrimaryKey(val fields: List<String>, objectName: String, className: String
 class ForigenKey(name: String, val referenceClass: String, val referenceObject: String, val referenceColumn: String, val many: Boolean, objectName: String, className: String = objectName.singularize()) : DaoColumn(name, objectName, className) {
     override fun classString(): String {
         if (!many) {
-            return "val $name by $referenceObject referencedOn $objectName.$name"
+            return "val $name by $referenceClass referencedOn $objectName.$name"
         } else {
             return "val $name by $referenceClass referrersOn $referenceObject.$referenceColumn"
         }
@@ -454,7 +473,7 @@ class ForigenKey(name: String, val referenceClass: String, val referenceObject: 
 
     override fun objectString(): String {
         if (!many) {
-            return "val $name = reference($referenceObject, $referenceObject)"
+            return "val $name = reference(\"$referenceColumn\", $referenceObject)"
         } else {
             return ""
         }

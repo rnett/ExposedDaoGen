@@ -1,3 +1,37 @@
+CREATE TABLE public.industryactivityrecipes_mine
+(
+    "typeID" integer NOT NULL,
+    "activityID" integer NOT NULL,
+    "productTypeID" integer NOT NULL,
+    "productQuantity" integer,
+    "materialTypeID" integer NOT NULL,
+    "materialQuantity" integer,
+    probability numeric,
+    CONSTRAINT industryactivityrecipes_mine_typeid_activityid_producttypeid_ma PRIMARY KEY ("typeID", "activityID", "productTypeID", "materialTypeID"),
+    CONSTRAINT industryactivityrecipes_mine_industryactivity_typeid_activityid FOREIGN KEY ("activityID", "typeID")
+        REFERENCES public.industryactivity ("activityID", "typeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT industryactivityrecipes_mine_invtypes_materialtypeid_fk FOREIGN KEY ("materialTypeID")
+        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT industryactivityrecipes_mine_invtypes_producttypeid_fk FOREIGN KEY ("productTypeID")
+        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT industryactivityrecipes_mine_invtypes_typeid_fk FOREIGN KEY ("typeID")
+        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.industryactivityrecipes_mine
+    OWNER to postgres;
 -- Table: public.invtypes
 
 -- DROP TABLE public.invtypes;
@@ -46,64 +80,44 @@ CREATE INDEX "ix_invTypes_groupID"
     ("groupID")
     TABLESPACE pg_default;
 
-    -- Table: public.invmarketgroups
+-- Table: public.invgroups
 
-    -- DROP TABLE public.invmarketgroups;
+-- DROP TABLE public.invgroups;
 
-    CREATE TABLE public.invmarketgroups
-    (
-        "marketGroupID" integer NOT NULL,
-        "parentGroupID" integer,
-        "marketGroupName" character varying(100) COLLATE pg_catalog."default",
-        description character varying(3000) COLLATE pg_catalog."default",
-        "iconID" integer,
-        "hasTypes" boolean,
-        CONSTRAINT "invMarketGroups_pkey" PRIMARY KEY ("marketGroupID")
-    )
-    WITH (
-        OIDS = FALSE
-    )
+CREATE TABLE public.invgroups
+(
+    "groupID" integer NOT NULL,
+    "categoryID" integer,
+    "groupName" character varying(100) COLLATE pg_catalog."default",
+    "iconID" integer,
+    "useBasePrice" boolean,
+    anchored boolean,
+    anchorable boolean,
+    "fittableNonSingleton" boolean,
+    published boolean,
+    CONSTRAINT "invGroups_pkey" PRIMARY KEY ("groupID"),
+    CONSTRAINT invcategories_invgroups_fk FOREIGN KEY ("categoryID")
+        REFERENCES public.invcategories ("categoryID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.invgroups
+    OWNER to postgres;
+
+-- Index: ix_invGroups_categoryID
+
+-- DROP INDEX public."ix_invGroups_categoryID";
+
+CREATE INDEX "ix_invGroups_categoryID"
+    ON public.invgroups USING btree
+    ("categoryID")
     TABLESPACE pg_default;
 
-    ALTER TABLE public.invmarketgroups
-        OWNER to postgres;
-        -- Table: public.invgroups
-
-        -- DROP TABLE public.invgroups;
-
-        CREATE TABLE public.invgroups
-        (
-            "groupID" integer NOT NULL,
-            "categoryID" integer,
-            "groupName" character varying(100) COLLATE pg_catalog."default",
-            "iconID" integer,
-            "useBasePrice" boolean,
-            anchored boolean,
-            anchorable boolean,
-            "fittableNonSingleton" boolean,
-            published boolean,
-            CONSTRAINT "invGroups_pkey" PRIMARY KEY ("groupID"),
-            CONSTRAINT invcategories_invgroups_fk FOREIGN KEY ("categoryID")
-                REFERENCES public.invcategories ("categoryID") MATCH SIMPLE
-                ON UPDATE NO ACTION
-                ON DELETE NO ACTION
-        )
-        WITH (
-            OIDS = FALSE
-        )
-        TABLESPACE pg_default;
-
-        ALTER TABLE public.invgroups
-            OWNER to postgres;
-
-        -- Index: ix_invGroups_categoryID
-
-        -- DROP INDEX public."ix_invGroups_categoryID";
-
-        CREATE INDEX "ix_invGroups_categoryID"
-            ON public.invgroups USING btree
-            ("categoryID")
-            TABLESPACE pg_default;
 -- Table: public.invcategories
 
 -- DROP TABLE public.invcategories;
@@ -124,73 +138,48 @@ TABLESPACE pg_default;
 ALTER TABLE public.invcategories
     OWNER to postgres;
 
--- Table: public.dgmtypeeffects
-
--- DROP TABLE public.dgmtypeeffects;
-
-CREATE TABLE public.dgmtypeeffects
-(
-    "typeID" integer NOT NULL,
-    "effectID" integer NOT NULL,
-    "isDefault" boolean,
-    CONSTRAINT "dgmTypeEffects_pkey" PRIMARY KEY ("typeID", "effectID"),
-    CONSTRAINT dgmeffects_dgmtypeeffects_fk FOREIGN KEY ("effectID")
-        REFERENCES public.dgmeffects ("effectID") MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT invtypes_dgmtypeeffects_fk FOREIGN KEY ("typeID")
-        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
-)
-WITH (
-    OIDS = FALSE
-)
-TABLESPACE pg_default;
-
-ALTER TABLE public.dgmtypeeffects
-    OWNER to postgres;
-
--- Table: public.dgmtypeattributes
-
--- DROP TABLE public.dgmtypeattributes;
-
-CREATE TABLE public.dgmtypeattributes
-(
-    "typeID" integer NOT NULL,
-    "attributeID" integer NOT NULL,
-    "valueInt" integer,
-    "valueFloat" double precision,
-    CONSTRAINT "dgmTypeAttributes_pkey" PRIMARY KEY ("typeID", "attributeID"),
-    CONSTRAINT dgmattributetypes_dgmtypeattributes_fk FOREIGN KEY ("attributeID")
-        REFERENCES public.dgmattributetypes ("attributeID") MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT invtypes_dgmtypeattributes_fk FOREIGN KEY ("typeID")
-        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
-)
-WITH (
-    OIDS = FALSE
-)
-TABLESPACE pg_default;
-
-ALTER TABLE public.dgmtypeattributes
-    OWNER to postgres;
-
--- Index: ix_dgmTypeAttributes_attributeID
-
--- DROP INDEX public."ix_dgmTypeAttributes_attributeID";
-
-CREATE INDEX "ix_dgmTypeAttributes_attributeID"
-    ON public.dgmtypeattributes USING btree
-    ("attributeID")
+    CREATE TABLE public.invtypematerials
+    (
+        "typeID" integer NOT NULL,
+        "materialTypeID" integer NOT NULL,
+        quantity integer NOT NULL,
+        CONSTRAINT "invTypeMaterials_pkey" PRIMARY KEY ("typeID", "materialTypeID"),
+        CONSTRAINT invtypematerials_invtypes_materialtypeid_fk FOREIGN KEY ("materialTypeID")
+            REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+            ON UPDATE NO ACTION
+            ON DELETE NO ACTION,
+        CONSTRAINT invtypematerials_invtypes_typeid_fk FOREIGN KEY ("typeID")
+            REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+            ON UPDATE NO ACTION
+            ON DELETE NO ACTION
+    )
+    WITH (
+        OIDS = FALSE
+    )
     TABLESPACE pg_default;
 
--- Table: public.dgmeffects
+    ALTER TABLE public.invtypematerials
+        OWNER to postgres;
 
--- DROP TABLE public.dgmeffects;
+CREATE TABLE public.dgmattributetypes
+(
+    "attributeID" integer NOT NULL,
+    "attributeName" character varying(100) COLLATE pg_catalog."default",
+    description character varying(1000) COLLATE pg_catalog."default",
+    "iconID" integer,
+    "defaultValue" double precision,
+    published boolean,
+    "displayName" character varying(150) COLLATE pg_catalog."default",
+    "unitID" integer,
+    stackable boolean,
+    "highIsGood" boolean,
+    "categoryID" integer,
+    CONSTRAINT "dgmAttributeTypes_pkey" PRIMARY KEY ("attributeID")
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
 
 CREATE TABLE public.dgmeffects
 (
@@ -222,7 +211,15 @@ CREATE TABLE public.dgmeffects
     "npcActivationChanceAttributeID" integer,
     "fittingUsageChanceAttributeID" integer,
     "modifierInfo" text COLLATE pg_catalog."default",
-    CONSTRAINT "dgmEffects_pkey" PRIMARY KEY ("effectID")
+    CONSTRAINT "dgmEffects_pkey" PRIMARY KEY ("effectID"),
+    CONSTRAINT dgmeffects_dgmexpressions_expressionid_postexpression_fk FOREIGN KEY ("postExpression")
+        REFERENCES public.dgmexpressions ("expressionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT dgmeffects_dgmexpressions_expressionid_preexpression_fk FOREIGN KEY ("preExpression")
+        REFERENCES public.dgmexpressions ("expressionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
 WITH (
     OIDS = FALSE
@@ -232,29 +229,363 @@ TABLESPACE pg_default;
 ALTER TABLE public.dgmeffects
     OWNER to postgres;
 
--- Table: public.dgmattributetypes
 
--- DROP TABLE public.dgmattributetypes;
-
-CREATE TABLE public.dgmattributetypes
+CREATE TABLE public.dgmtypeattributes
 (
+    "typeID" integer NOT NULL,
     "attributeID" integer NOT NULL,
-    "attributeName" character varying(100) COLLATE pg_catalog."default",
-    description character varying(1000) COLLATE pg_catalog."default",
-    "iconID" integer,
-    "defaultValue" double precision,
-    published boolean,
-    "displayName" character varying(150) COLLATE pg_catalog."default",
-    "unitID" integer,
-    stackable boolean,
-    "highIsGood" boolean,
-    "categoryID" integer,
-    CONSTRAINT "dgmAttributeTypes_pkey" PRIMARY KEY ("attributeID")
+    "valueInt" integer,
+    "valueFloat" double precision,
+    CONSTRAINT "dgmTypeAttributes_pkey" PRIMARY KEY ("typeID", "attributeID"),
+    CONSTRAINT dgmattributetypes_dgmtypeattributes_fk FOREIGN KEY ("attributeID")
+        REFERENCES public.dgmattributetypes ("attributeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT invtypes_dgmtypeattributes_fk FOREIGN KEY ("typeID")
+        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
 WITH (
     OIDS = FALSE
 )
 TABLESPACE pg_default;
 
-ALTER TABLE public.dgmattributetypes
+ALTER TABLE public.dgmtypeattributes
+    OWNER to postgres;
+
+-- Index: ix_dgmTypeAttributes_attributeID
+
+-- DROP INDEX public."ix_dgmTypeAttributes_attributeID";
+
+CREATE TABLE public.dgmtypeeffects
+(
+    "typeID" integer NOT NULL,
+    "effectID" integer NOT NULL,
+    "isDefault" boolean,
+    CONSTRAINT "dgmTypeEffects_pkey" PRIMARY KEY ("typeID", "effectID"),
+    CONSTRAINT dgmeffects_dgmtypeeffects_fk FOREIGN KEY ("effectID")
+        REFERENCES public.dgmeffects ("effectID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT invtypes_dgmtypeeffects_fk FOREIGN KEY ("typeID")
+        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+CREATE TABLE public.invmarketgroups
+(
+    "marketGroupID" integer NOT NULL,
+    "parentGroupID" integer,
+    "marketGroupName" character varying(100) COLLATE pg_catalog."default",
+    description character varying(3000) COLLATE pg_catalog."default",
+    "iconID" integer,
+    "hasTypes" boolean,
+    CONSTRAINT "invMarketGroups_pkey" PRIMARY KEY ("marketGroupID"),
+    CONSTRAINT invmarketgroups_parent__fk FOREIGN KEY ("parentGroupID")
+        REFERENCES public.invmarketgroups ("marketGroupID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.invmarketgroups
+    OWNER to postgres;
+
+CREATE TABLE public.dgmexpressions
+(
+    "expressionID" integer NOT NULL,
+    "operandID" integer,
+    arg1 integer,
+    arg2 integer,
+    "expressionValue" character varying(100) COLLATE pg_catalog."default",
+    description character varying(1000) COLLATE pg_catalog."default",
+    "expressionName" character varying(500) COLLATE pg_catalog."default",
+    "expressionTypeID" integer,
+    "expressionGroupID" integer,
+    "expressionAttributeID" integer,
+    CONSTRAINT "dgmExpressions_pkey" PRIMARY KEY ("expressionID"),
+    CONSTRAINT dgmexpressions_dgmattributetypes_attributeid_fk FOREIGN KEY ("expressionAttributeID")
+        REFERENCES public.dgmattributetypes ("attributeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT dgmexpressions_dgmexpressions_expressionid_arg1_fk FOREIGN KEY (arg1)
+        REFERENCES public.dgmexpressions ("expressionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT dgmexpressions_dgmexpressions_expressionid_arg2_fk FOREIGN KEY (arg2)
+        REFERENCES public.dgmexpressions ("expressionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT dgmexpressions_invgroups_groupid_fk FOREIGN KEY ("expressionGroupID")
+        REFERENCES public.invgroups ("groupID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT dgmexpressions_invtypes_typeid_fk FOREIGN KEY ("expressionTypeID")
+        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.dgmexpressions
+    OWNER to postgres;
+
+-- Table: public.mapsolarsystems
+
+-- DROP TABLE public.mapsolarsystems;
+
+CREATE TABLE public.mapsolarsystems
+(
+    "regionID" integer,
+    "constellationID" integer,
+    "solarSystemID" integer NOT NULL,
+    "solarSystemName" character varying(100) COLLATE pg_catalog."default",
+    x double precision,
+    y double precision,
+    z double precision,
+    "xMin" double precision,
+    "xMax" double precision,
+    "yMin" double precision,
+    "yMax" double precision,
+    "zMin" double precision,
+    "zMax" double precision,
+    luminosity double precision,
+    border boolean,
+    fringe boolean,
+    corridor boolean,
+    hub boolean,
+    international boolean,
+    regional boolean,
+    constellation boolean,
+    security double precision,
+    "factionID" integer,
+    radius double precision,
+    "sunTypeID" integer,
+    "securityClass" character varying(2) COLLATE pg_catalog."default",
+    CONSTRAINT "mapSolarSystems_pkey" PRIMARY KEY ("solarSystemID"),
+    CONSTRAINT mapsolarsystems_mapconstellations_constellationid_fk FOREIGN KEY ("constellationID")
+        REFERENCES public.mapconstellations ("constellationID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapsolarsystems_mapregions_regionid_fk FOREIGN KEY ("regionID")
+        REFERENCES public.mapregions ("regionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.mapsolarsystems
+    OWNER to postgres;
+
+-- Index: ix_mapSolarSystems_constellationID
+
+-- DROP INDEX public."ix_mapSolarSystems_constellationID";
+
+CREATE INDEX "ix_mapSolarSystems_constellationID"
+    ON public.mapsolarsystems USING btree
+    ("constellationID")
+    TABLESPACE pg_default;
+
+-- Index: ix_mapSolarSystems_regionID
+
+-- DROP INDEX public."ix_mapSolarSystems_regionID";
+
+CREATE INDEX "ix_mapSolarSystems_regionID"
+    ON public.mapsolarsystems USING btree
+    ("regionID")
+    TABLESPACE pg_default;
+
+-- Index: ix_mapSolarSystems_security
+
+-- DROP INDEX public."ix_mapSolarSystems_security";
+
+CREATE INDEX "ix_mapSolarSystems_security"
+    ON public.mapsolarsystems USING btree
+    (security)
+    TABLESPACE pg_default;
+
+-- Table: public.mapsolarsystemjumps
+
+-- DROP TABLE public.mapsolarsystemjumps;
+
+CREATE TABLE public.mapsolarsystemjumps
+(
+    "fromRegionID" integer,
+    "fromConstellationID" integer,
+    "fromSolarSystemID" integer NOT NULL,
+    "toSolarSystemID" integer NOT NULL,
+    "toConstellationID" integer,
+    "toRegionID" integer,
+    CONSTRAINT "mapSolarSystemJumps_pkey" PRIMARY KEY ("fromSolarSystemID", "toSolarSystemID"),
+    CONSTRAINT mapsolarsystemjumps_mapconstellations_fromconstellationid_fk FOREIGN KEY ("fromConstellationID")
+        REFERENCES public.mapconstellations ("constellationID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapsolarsystemjumps_mapconstellations_toconstellationid_fk FOREIGN KEY ("toConstellationID")
+        REFERENCES public.mapconstellations ("constellationID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapsolarsystemjumps_mapregions_fromregionid_fk FOREIGN KEY ("fromRegionID")
+        REFERENCES public.mapregions ("regionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapsolarsystemjumps_mapregions_toregionid_fk FOREIGN KEY ("toRegionID")
+        REFERENCES public.mapregions ("regionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapsolarsystemjumps_mapsolarsystems_fromsolarsystemid_fk FOREIGN KEY ("fromSolarSystemID")
+        REFERENCES public.mapsolarsystems ("solarSystemID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapsolarsystemjumps_mapsolarsystems_tosolarsystemid_fk FOREIGN KEY ("toSolarSystemID")
+        REFERENCES public.mapsolarsystems ("solarSystemID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.mapsolarsystemjumps
+    OWNER to postgres;
+
+-- Table: public.mapregions
+
+-- DROP TABLE public.mapregions;
+
+CREATE TABLE public.mapregions
+(
+    "regionID" integer NOT NULL,
+    "regionName" character varying(100) COLLATE pg_catalog."default",
+    x double precision,
+    y double precision,
+    z double precision,
+    "xMin" double precision,
+    "xMax" double precision,
+    "yMin" double precision,
+    "yMax" double precision,
+    "zMin" double precision,
+    "zMax" double precision,
+    "factionID" integer,
+    radius double precision,
+    CONSTRAINT "mapRegions_pkey" PRIMARY KEY ("regionID")
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.mapregions
+    OWNER to postgres;
+
+-- Table: public.mapregionjumps
+
+-- DROP TABLE public.mapregionjumps;
+
+CREATE TABLE public.mapregionjumps
+(
+    "fromRegionID" integer NOT NULL,
+    "toRegionID" integer NOT NULL,
+    CONSTRAINT "mapRegionJumps_pkey" PRIMARY KEY ("fromRegionID", "toRegionID"),
+    CONSTRAINT mapregionjumps_mapregions_fromregionid_fk FOREIGN KEY ("fromRegionID")
+        REFERENCES public.mapregions ("regionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapregionjumps_mapregions_toregionid_fk FOREIGN KEY ("toRegionID")
+        REFERENCES public.mapregions ("regionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.mapregionjumps
+    OWNER to postgres;
+
+-- Table: public.mapconstellations
+
+-- DROP TABLE public.mapconstellations;
+
+CREATE TABLE public.mapconstellations
+(
+    "regionID" integer,
+    "constellationID" integer NOT NULL,
+    "constellationName" character varying(100) COLLATE pg_catalog."default",
+    x double precision,
+    y double precision,
+    z double precision,
+    "xMin" double precision,
+    "xMax" double precision,
+    "yMin" double precision,
+    "yMax" double precision,
+    "zMin" double precision,
+    "zMax" double precision,
+    "factionID" integer,
+    radius double precision,
+    CONSTRAINT "mapConstellations_pkey" PRIMARY KEY ("constellationID"),
+    CONSTRAINT mapconstellations_mapregions_regionid_fk FOREIGN KEY ("regionID")
+        REFERENCES public.mapregions ("regionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.mapconstellations
+    OWNER to postgres;
+
+-- Table: public.mapconstellationjumps
+
+-- DROP TABLE public.mapconstellationjumps;
+
+CREATE TABLE public.mapconstellationjumps
+(
+    "fromRegionID" integer,
+    "fromConstellationID" integer NOT NULL,
+    "toConstellationID" integer NOT NULL,
+    "toRegionID" integer,
+    CONSTRAINT "mapConstellationJumps_pkey" PRIMARY KEY ("fromConstellationID", "toConstellationID"),
+    CONSTRAINT mapconstellationjumps_mapconstellations_fromconstellationid_fk FOREIGN KEY ("fromConstellationID")
+        REFERENCES public.mapconstellations ("constellationID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapconstellationjumps_mapconstellations_toconstellationid_fk FOREIGN KEY ("toConstellationID")
+        REFERENCES public.mapconstellations ("constellationID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapconstellationjumps_mapregions_fromregionid_fk FOREIGN KEY ("fromRegionID")
+        REFERENCES public.mapregions ("regionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mapconstellationjumps_mapregions_toregionid_fk FOREIGN KEY ("toRegionID")
+        REFERENCES public.mapregions ("regionID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.mapconstellationjumps
     OWNER to postgres;

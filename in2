@@ -1,0 +1,126 @@
+-- Table: fleeteye.kills
+
+-- DROP TABLE fleeteye.kills;
+
+CREATE TABLE fleeteye.kills
+(
+    killid integer NOT NULL,
+    zkill json,
+    CONSTRAINT kills_pkey PRIMARY KEY (killid)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE fleeteye.kills
+    OWNER to postgres;
+-- Table: fleeteye.groupings
+
+-- DROP TABLE fleeteye.groupings;
+
+CREATE TABLE fleeteye.groupings
+(
+    charid integer NOT NULL,
+    othercharid integer NOT NULL,
+    firstcreated bigint,
+    lastupdated bigint,
+    score integer,
+    hits integer,
+    CONSTRAINT groupings_charid_othercharid_pk PRIMARY KEY (charid, othercharid),
+    CONSTRAINT grouping_characterdata_charid_fk FOREIGN KEY (charid)
+        REFERENCES fleeteye.characterdatas (charid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT grouping_characterdata_other__fk FOREIGN KEY (othercharid)
+        REFERENCES fleeteye.characterdatas (charid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE fleeteye.groupings
+    OWNER to postgres;
+
+-- Index: grouping_charid_othercharid_uindex
+
+-- DROP INDEX fleeteye.grouping_charid_othercharid_uindex;
+
+CREATE UNIQUE INDEX grouping_charid_othercharid_uindex
+    ON fleeteye.groupings USING btree
+    (charid, othercharid)
+    TABLESPACE pg_default;
+-- Table: fleeteye.corporations
+
+-- DROP TABLE fleeteye.corporations;
+
+CREATE TABLE fleeteye.corporations
+(
+    corpid integer NOT NULL,
+    corpname character varying(100) COLLATE pg_catalog."default",
+    allianceid integer,
+    CONSTRAINT corporation_pkey PRIMARY KEY (corpid),
+    CONSTRAINT corporation_alliance_allianceid_fk FOREIGN KEY (allianceid)
+        REFERENCES fleeteye.alliances (allianceid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE fleeteye.corporations
+    OWNER to postgres;
+-- Table: fleeteye.characterdatas
+
+-- DROP TABLE fleeteye.characterdatas;
+
+CREATE TABLE fleeteye.characterdatas
+(
+    charid integer NOT NULL,
+    shipid integer,
+    charname character varying(100) COLLATE pg_catalog."default",
+    allianceid integer,
+    corpid integer,
+    CONSTRAINT characterdata_charid_pk PRIMARY KEY (charid),
+    CONSTRAINT characterdata_alliance_allianceid_fk FOREIGN KEY (allianceid)
+        REFERENCES fleeteye.alliances (allianceid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT characterdata_corporation_corpid_fk FOREIGN KEY (corpid)
+        REFERENCES fleeteye.corporations (corpid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT characterdata_invtypes_typeid_fk FOREIGN KEY (shipid)
+        REFERENCES public.invtypes ("typeID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE fleeteye.characterdatas
+    OWNER to postgres;
+-- Table: fleeteye.alliances
+
+-- DROP TABLE fleeteye.alliances;
+
+CREATE TABLE fleeteye.alliances
+(
+    allianceid integer NOT NULL,
+    alliancename character varying(100) COLLATE pg_catalog."default",
+    CONSTRAINT alliance_pkey PRIMARY KEY (allianceid)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE fleeteye.alliances
+    OWNER to postgres;
