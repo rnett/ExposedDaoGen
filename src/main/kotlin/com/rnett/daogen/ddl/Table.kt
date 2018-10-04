@@ -3,6 +3,7 @@ package com.rnett.daogen.ddl
 import com.cesarferreira.pluralize.pluralize
 import com.cesarferreira.pluralize.singularize
 import com.rnett.daogen.database.DB
+import com.rnett.daogen.doDAO
 import java.sql.JDBCType
 
 data class PrimaryKey(val index: Int, val key: Column) {
@@ -76,6 +77,7 @@ class Table(
         setReferencingKeys(allKeys.filter { it.toTable == this }.toSet())
     }
 
+    //TODO use varchar as a key by hashcoding it?  What about on postgres side?
     enum class PKType(val valid: Boolean = true, val composite: Boolean = false) {
         Int, Long, Other(false), CompositeInt(composite = true), CompositeLong(composite = true), CompositeOther(false, true)
     }
@@ -98,7 +100,7 @@ class Table(
     val objectName = name.toObjectName()
     val className = name.toClassName()
 
-    fun toKotlin(tableNames: Set<String>) = "${makeForObject(tableNames)}\n\n\n${makeForClass(tableNames)}"
+    fun toKotlin(tableNames: Set<String>) = "${makeForObject(tableNames)}${if (doDAO) "\n\n\n" + makeForClass(tableNames) else ""}"
 
     val badNames = columns.keys + setOf(className, objectName)
 

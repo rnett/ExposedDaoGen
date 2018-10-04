@@ -1,20 +1,30 @@
 # Exposed DAO Code Generator
-Quick and dirty Kotlin Exposed DAO code generator.  Emphasis on quick and dirty.
+A command-line (for now) code generator for Kotlin [Exposed](https://github.com/JetBrains/Exposed).
 
-A script I'm using to generate DAO code, thought it could be usefull.  It probably won't work right away (it only supports the data I needed), but should be fairly easy to adapt.
+It is designed to work with PostgreSQL.  It may work with other vendors (reports of working/not working are welcome).
 
-Runs on create table statements from postgreSQL.  Can take input from a file argument or stdin.
+If you want to try to adapt it to a different vendor,
+look at the Type class and its uses, it is the only vendor dependant part.
 
-Automatically copies output to clipboard.
+Error reports / issues are welcome, but there is no guarantee I will get to it.
+This isn't something I'm supporting, just something I use that might be useful.
 
-#### Todo (maybe, someday, don't count on it):
+# Usage
 
-1. camelCase names.  Not sure if possible.
+Download the JAR or build with gradle.
 
-2. Import directly from database.
+Run with the command arguments: `<connectionString> [-f outFile] [-s schema] [-nodao] [-cc] [-q]`
+ * `connectionString` is the JDBC connection string.  **[MANDATORY]**
+ * `outFile` file to output to.  Default is not to output the generated code to a file.  Optional, **must be preceded by -f**
+ * `schema` schema to look at.  Default is all of them.  Optional, **must be preceded by -s**
+ * `-nodao` means not to generate DAO (classes), just DSL (objects).  Optional.
+ * `-cc` means to copy the generated code to the clipboard.  Optional.
+ * `-q` means to run in quiet mode without outputting the generated code.  Optional.
 
-3. Support more types
 
-4. Support clustered forigen keys (might need to wayt on Exposed).
-
-5. Support for non-int primary keys and non-int clustered primary keys (waiting on Exposed clustered key support).
+## TODO / Does not support
+ * Quoted names in Postgres
+ * A UI
+ * Better naming
+ * Support for more ids / primary keys (dependent on Exposed [mostly])
+ * via (how do I use this?  no Exposed docs)

@@ -7,6 +7,11 @@ import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import java.io.File
 
+var doDAO = true
+
+/**
+ * args: <connectionString> [-f outFile] [-s schema] [-nodao] [-cc] [-q]
+ */
 fun main(args: Array<String>) {
 
     if (args.isEmpty())
@@ -17,6 +22,9 @@ fun main(args: Array<String>) {
     val outFile = args["-f", { File(args[1]) }]
 
     val schema = args["-s"]
+
+    if ("-nodao" in args)
+        doDAO = false
 
     val out = DB.connect(dbString).generateTables(schema).generateKotlin()
 
