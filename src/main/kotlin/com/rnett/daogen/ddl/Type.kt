@@ -1,9 +1,11 @@
 package com.rnett.daogen.ddl
 
 enum class Type(val database: String, val kotlin: String, val kotlinType: String, val params: Int = 0) {
+    //TODO support for type name aliases, e.g. real and float
     IntType("int", "integer", "Int"),
     LongType("bigint", "long", "Long"),
     FloatType("float", "float", "Float"),
+    DoubleType("double precision", "double", "Double"),
     Decimal("decimal(\$1, \$2)", "decimal(\$name, \$1, \$2)", "BigDecimal", 2),//TODO w/ params
     Bool("boolean", "bool", "Boolean"),
     Char("char", "char", "Char"),
