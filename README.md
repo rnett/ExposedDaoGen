@@ -1,4 +1,7 @@
+![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-green.svg)
+
 # Exposed DAO Code Generator
+
 A command-line (for now) code generator for Kotlin [Exposed](https://github.com/JetBrains/Exposed).
 
 It is designed to work with PostgreSQL.  It may work with other vendors (reports of working/not working are welcome).
