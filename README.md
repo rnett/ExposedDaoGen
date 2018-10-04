@@ -25,6 +25,9 @@ Run with the command arguments: `<connectionString> [-f outFile] [-s schema] [-n
  * `-q` means to run in quiet mode without outputting the generated code.  Optional.
 
 
+To see the version of the jar, use `--version`.
+
+
 ## TODO / Does not support
  * Quoted names in Postgres
  * A UI

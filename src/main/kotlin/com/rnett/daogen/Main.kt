@@ -14,6 +14,11 @@ var doDAO = true
  */
 fun main(args: Array<String>) {
 
+    if (args.contains("--version")) {
+        println("Daogen version 1.0.0")
+        return
+    }
+
     if (args.isEmpty())
         throw IllegalArgumentException("Must provide database connection string")
 

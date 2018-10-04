@@ -44,4 +44,13 @@ jar {
     from {
         configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     }
+    version = ""
 }
+
+task copyJarToMain(type: Copy) {
+    from 'build/libs/daogen.jar'
+    into "libs"
+}
+
+jar.finalizedBy copyJarToMain
+
