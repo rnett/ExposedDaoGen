@@ -1,15 +1,15 @@
-package ddl
+package com.rnett.daogen.ddl
 
-enum class Type(val database: String, val kotlin: String, val params: Int = 0) {
-    IntType("int", "integer"),
-    LongType("bigint", "long"),
-    FloatType("float", "float"),
-    Decimal("decimal(\$1, \$2)", "decimal(\$name, \$1, \$2)", 2),//TODO w/ params
-    Bool("boolean", "bool"),
-    Char("char", "char"),
-    Varchar("varchar(\$1)", "varchar(\$name, \$1)", 1),//TODO w/ param
-    Text("text", "text"),
-    Unknown("", "//TODO unknown type")
+enum class Type(val database: String, val kotlin: String, val kotlinType: String, val params: Int = 0) {
+    IntType("int", "integer", "Int"),
+    LongType("bigint", "long", "Long"),
+    FloatType("float", "float", "Float"),
+    Decimal("decimal(\$1, \$2)", "decimal(\$name, \$1, \$2)", "BigDecimal", 2),//TODO w/ params
+    Bool("boolean", "bool", "Boolean"),
+    Char("char", "char", "Char"),
+    Varchar("varchar(\$1)", "varchar(\$name, \$1)", "String", 1),//TODO w/ param
+    Text("text", "text", "String"),
+    Unknown("", "//TODO unknown type", "String")
     //TODO more advanced types
     ;
 
@@ -47,7 +47,7 @@ enum class Type(val database: String, val kotlin: String, val params: Int = 0) {
             var kotlinString = kotlin
 
             for (i in 1..params) {
-                kotlinString = kotlinString.replace("\$$i", args[i])
+                kotlinString = kotlinString.replace("\$$i", args[i - 1])
             }
 
             kotlinString = kotlinString.replace("\$name", "\"$name\"")
