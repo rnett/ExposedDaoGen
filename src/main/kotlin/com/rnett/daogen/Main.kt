@@ -1,8 +1,8 @@
 package com.rnett.daogen
 
 import com.rnett.daogen.database.DB
+import com.rnett.daogen.ddl.generateDB
 import com.rnett.daogen.ddl.generateKotlin
-import com.rnett.daogen.ddl.generateTables
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import java.io.File
@@ -31,7 +31,7 @@ fun main(args: Array<String>) {
     if ("-nodao" in args)
         doDAO = false
 
-    val out = DB.connect(dbString).generateTables(schema).generateKotlin()
+    val out = DB.connect(dbString).generateDB(dbString, schema).generateKotlin()
 
     if ("-cc" in args) {
         val sel = StringSelection(out)

@@ -2,9 +2,9 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.input.KeyCodeCombination?>
+<?import javafx.scene.input.*?>
 <?import javafx.scene.layout.*?>
-<AnchorPane xmlns:fx="http://javafx.com/fxml/1" prefHeight="788.0" prefWidth="1077.0"
+<AnchorPane xmlns:fx="http://javafx.com/fxml/1" prefHeight="931.0" prefWidth="1293.0"
             xmlns="http://javafx.com/javafx/8">
     <children>
         <BorderPane layoutX="220.0" layoutY="149.0" prefHeight="738.0" prefWidth="1108.0" AnchorPane.bottomAnchor="0.0"
@@ -12,146 +12,186 @@
             <top>
                 <VBox>
                     <children>
-                        <MenuBar prefHeight="25.0" prefWidth="794.0">
-                            <menus>
-                                <Menu mnemonicParsing="false" text="File">
-                                    <items>
-                                        <MenuItem mnemonicParsing="false" text="New">
-                                            <accelerator>
-                                                <KeyCodeCombination alt="UP" code="N" control="DOWN" meta="UP"
-                                                                    shift="UP" shortcut="UP"/>
-                                            </accelerator>
-                                        </MenuItem>
-                                        <MenuItem mnemonicParsing="false" text="Open">
-                                            <accelerator>
-                                                <KeyCodeCombination alt="UP" code="O" control="DOWN" meta="UP"
-                                                                    shift="UP" shortcut="UP"/>
-                                            </accelerator>
-                                        </MenuItem>
-                                        <MenuItem mnemonicParsing="false" text="Save">
-                                            <accelerator>
-                                                <KeyCodeCombination alt="UP" code="S" control="DOWN" meta="UP"
-                                                                    shift="UP" shortcut="UP"/>
-                                            </accelerator>
-                                        </MenuItem>
-                                        <MenuItem mnemonicParsing="false" text="Save As">
-                                            <accelerator>
-                                                <KeyCodeCombination alt="UP" code="S" control="DOWN" meta="UP"
-                                                                    shift="DOWN" shortcut="UP"/>
-                                            </accelerator>
-                                        </MenuItem>
-                                    </items>
-                                </Menu>
-                            </menus>
-                        </MenuBar>
-                        <HBox prefHeight="44.0" prefWidth="869.0" BorderPane.alignment="CENTER">
+                        <HBox alignment="CENTER">
                             <children>
-                                <Label prefHeight="22.0" text="JDBC Connection String:">
+                                <MenuBar prefHeight="25.0" prefWidth="794.0" HBox.hgrow="ALWAYS">
+                                    <menus>
+                                        <Menu mnemonicParsing="false" text="File">
+                                            <items>
+                                                <MenuItem mnemonicParsing="false" onAction="#newDB" text="New">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="N" control="DOWN" meta="UP"
+                                                                            shift="UP" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
+                                                <MenuItem mnemonicParsing="false" onAction="#openSaved" text="Open">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="O" control="DOWN" meta="UP"
+                                                                            shift="UP" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
+                                                <MenuItem mnemonicParsing="false" onAction="#save" text="Save">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="S" control="DOWN" meta="UP"
+                                                                            shift="UP" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
+                                                <MenuItem mnemonicParsing="false" onAction="#saveAs" text="Save As">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="S" control="DOWN" meta="UP"
+                                                                            shift="DOWN" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
+                                            </items>
+                                        </Menu>
+                                        <Menu mnemonicParsing="false" text="Import / Export">
+                                            <items>
+                                                <MenuItem mnemonicParsing="false" onAction="#export" text="Export">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="E" control="DOWN" meta="UP"
+                                                                            shift="UP" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
+                                                <MenuItem mnemonicParsing="false" onAction="#exportTo" text="Export To">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="E" control="DOWN" meta="UP"
+                                                                            shift="DOWN" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
+                                                <MenuItem mnemonicParsing="false" onAction="#importFrom" text="Import"/>
+                                            </items>
+                                        </Menu>
+                                    </menus>
+                                </MenuBar>
+                                <CheckBox fx:id="autosaveCheckbox" mnemonicParsing="false" text="Autosave">
                                     <HBox.margin>
-                                        <Insets left="10.0"/>
+                                        <Insets left="5.0" right="10.0"/>
                                     </HBox.margin>
-                                </Label>
-                                <TextField fx:id="dbConStringTF" prefHeight="25.0" prefWidth="634.0"
-                                           HBox.hgrow="SOMETIMES">
+                                </CheckBox>
+                                <CheckBox fx:id="autoExportCheckbox" layoutX="1223.0" layoutY="14.0"
+                                          mnemonicParsing="false" text="Auto Export">
                                     <HBox.margin>
-                                        <Insets left="20.0" right="20.0"/>
+                                        <Insets right="10.0"/>
                                     </HBox.margin>
-                                </TextField>
-                                <Button mnemonicParsing="false" onAction="#loadDB" text="Load">
-                                    <HBox.margin>
-                                        <Insets right="20.0"/>
-                                    </HBox.margin>
-                                </Button>
+                                </CheckBox>
                             </children>
-                            <padding>
-                                <Insets bottom="10.0" top="10.0"/>
-                            </padding>
                         </HBox>
                     </children>
                 </VBox>
             </top>
-            <left>
-                <SplitPane dividerPositions="0.5" orientation="VERTICAL" prefHeight="718.0" prefWidth="365.0"
-                           BorderPane.alignment="CENTER">
-                    <items>
-                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0" prefWidth="160.0">
-                            <children>
-                                <ListView fx:id="tablesList" layoutX="21.0" layoutY="14.0" prefHeight="200.0"
-                                          prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                    <tooltip>
-                                        <Tooltip text="Tables"/>
-                                    </tooltip>
-                                </ListView>
-                            </children>
-                        </AnchorPane>
-                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0" prefWidth="160.0">
-                            <children>
-                                <SplitPane dividerPositions="0.5" layoutX="41.0" layoutY="26.0" orientation="VERTICAL"
-                                           prefHeight="200.0" prefWidth="160.0" AnchorPane.bottomAnchor="0.0"
-                                           AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
-                                           AnchorPane.topAnchor="0.0">
-                                    <items>
-                                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0" prefWidth="160.0">
-                                            <children>
-                                                <TreeView fx:id="objectTree" layoutX="52.0" layoutY="-14.0"
-                                                          prefHeight="200.0" prefWidth="200.0"
-                                                          AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                                          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                                    <tooltip>
-                                                        <Tooltip text="Object Fields"/>
-                                                    </tooltip>
-                                                </TreeView>
-                                            </children>
-                                        </AnchorPane>
-                                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0" prefWidth="160.0">
-                                            <children>
-                                                <TreeView fx:id="classTree" layoutX="109.0" layoutY="-7.0"
-                                                          prefHeight="200.0" prefWidth="200.0"
-                                                          AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                                          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                                    <tooltip>
-                                                        <Tooltip text="Class Fields"/>
-                                                    </tooltip>
-                                                </TreeView>
-                                            </children>
-                                        </AnchorPane>
-                                    </items>
-                                </SplitPane>
-                            </children>
-                        </AnchorPane>
-                    </items>
-                </SplitPane>
-            </left>
             <center>
                 <AnchorPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
                     <children>
-                        <TextArea editable="false" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0"
-                                  AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                            <tooltip>
-                                <Tooltip text="Generated Code"/>
-                            </tooltip>
-                        </TextArea>
+                        <SplitPane dividerPositions="0.3222308288148722, 0.7583268783888458" prefHeight="160.0"
+                                   prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                                   AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                            <items>
+                                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
+                                    <children>
+                                        <SplitPane dividerPositions="0.5" orientation="VERTICAL" prefHeight="718.0"
+                                                   prefWidth="365.0" AnchorPane.bottomAnchor="0.0"
+                                                   AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                                                   AnchorPane.topAnchor="0.0">
+                                            <items>
+                                                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0"
+                                                            prefWidth="160.0">
+                                                    <children>
+                                                        <ListView fx:id="tablesList" layoutX="21.0" layoutY="14.0"
+                                                                  prefHeight="200.0" prefWidth="200.0"
+                                                                  AnchorPane.bottomAnchor="0.0"
+                                                                  AnchorPane.leftAnchor="0.0"
+                                                                  AnchorPane.rightAnchor="0.0"
+                                                                  AnchorPane.topAnchor="0.0">
+                                                            <tooltip>
+                                                                <Tooltip text="Tables"/>
+                                                            </tooltip>
+                                                        </ListView>
+                                                    </children>
+                                                </AnchorPane>
+                                                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0"
+                                                            prefWidth="160.0">
+                                                    <children>
+                                                        <SplitPane dividerPositions="0.5" layoutX="41.0" layoutY="26.0"
+                                                                   orientation="VERTICAL" prefHeight="200.0"
+                                                                   prefWidth="160.0" AnchorPane.bottomAnchor="0.0"
+                                                                   AnchorPane.leftAnchor="0.0"
+                                                                   AnchorPane.rightAnchor="0.0"
+                                                                   AnchorPane.topAnchor="0.0">
+                                                            <items>
+                                                                <AnchorPane minHeight="0.0" minWidth="0.0"
+                                                                            prefHeight="100.0" prefWidth="160.0">
+                                                                    <children>
+                                                                        <TreeView fx:id="objectTree" layoutX="52.0"
+                                                                                  layoutY="-14.0" prefHeight="200.0"
+                                                                                  prefWidth="200.0"
+                                                                                  AnchorPane.bottomAnchor="0.0"
+                                                                                  AnchorPane.leftAnchor="0.0"
+                                                                                  AnchorPane.rightAnchor="0.0"
+                                                                                  AnchorPane.topAnchor="0.0">
+                                                                            <tooltip>
+                                                                                <Tooltip text="Object Fields"/>
+                                                                            </tooltip>
+                                                                        </TreeView>
+                                                                    </children>
+                                                                </AnchorPane>
+                                                                <AnchorPane minHeight="0.0" minWidth="0.0"
+                                                                            prefHeight="100.0" prefWidth="160.0">
+                                                                    <children>
+                                                                        <TreeView fx:id="classTree" layoutX="109.0"
+                                                                                  layoutY="-7.0" prefHeight="200.0"
+                                                                                  prefWidth="200.0"
+                                                                                  AnchorPane.bottomAnchor="0.0"
+                                                                                  AnchorPane.leftAnchor="0.0"
+                                                                                  AnchorPane.rightAnchor="0.0"
+                                                                                  AnchorPane.topAnchor="0.0">
+                                                                            <tooltip>
+                                                                                <Tooltip text="Class Fields"/>
+                                                                            </tooltip>
+                                                                        </TreeView>
+                                                                    </children>
+                                                                </AnchorPane>
+                                                            </items>
+                                                        </SplitPane>
+                                                    </children>
+                                                </AnchorPane>
+                                            </items>
+                                        </SplitPane>
+                                    </children>
+                                </AnchorPane>
+                                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
+                                    <children>
+                                        <TextArea fx:id="codeArea" editable="false" prefHeight="763.0" prefWidth="523.0"
+                                                  AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                                                  AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                            <tooltip>
+                                                <Tooltip text="Generated Code"/>
+                                            </tooltip>
+                                        </TextArea>
+                                        <HBox alignment="CENTER" prefHeight="31.0" prefWidth="373.0"
+                                              AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                                              AnchorPane.topAnchor="0.0"/>
+                                    </children>
+                                </AnchorPane>
+                                <AnchorPane prefHeight="200.0" prefWidth="200.0">
+                                    <children>
+                                        <AnchorPane fx:id="editorPane" layoutX="-14.0" layoutY="43.0" prefHeight="755.0"
+                                                    prefWidth="405.0" AnchorPane.bottomAnchor="2.0"
+                                                    AnchorPane.leftAnchor="-14.0" AnchorPane.rightAnchor="14.0"
+                                                    AnchorPane.topAnchor="43.0"/>
+                                        <HBox alignment="CENTER" prefHeight="43.0" prefWidth="339.0"
+                                              AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                                              AnchorPane.topAnchor="0.0">
+                                            <children>
+                                                <Label fx:id="editorLabel" text="Label"/>
+                                            </children>
+                                        </HBox>
+                                    </children>
+                                </AnchorPane>
+                            </items>
+                        </SplitPane>
                     </children>
                 </AnchorPane>
             </center>
-            <right>
-                <VBox>
-                    <children>
-                        <HBox prefHeight="21.0" prefWidth="200.0">
-                            <children>
-                                <StackPane prefHeight="150.0" prefWidth="200.0">
-                                    <children>
-                                        <Label fx:id="editorLabel" text="Label"/>
-                                    </children>
-                                </StackPane>
-                            </children>
-                        </HBox>
-                        <AnchorPane fx:id="editorPane" prefHeight="200.0" prefWidth="200.0"
-                                    BorderPane.alignment="CENTER"/>
-                    </children>
-                </VBox>
-            </right>
             <bottom>
                 <VBox prefHeight="61.0" prefWidth="1077.0" BorderPane.alignment="CENTER"/>
             </bottom>

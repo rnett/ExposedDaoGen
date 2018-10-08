@@ -2,8 +2,11 @@ package com.rnett.daogen.ddl
 
 import com.cesarferreira.pluralize.pluralize
 import com.cesarferreira.pluralize.singularize
+import com.rnett.daogen.app.EditableItem
 import com.rnett.daogen.database.DB
 import com.rnett.daogen.doDAO
+import javafx.scene.Parent
+import tornadofx.*
 import java.sql.JDBCType
 
 data class PrimaryKey(val index: Int, val key: Column) {
@@ -47,16 +50,18 @@ class Table(
         val columns: Map<String, Column>,
         val primaryKeys: Set<PrimaryKey>,
         fKs: Set<ForigenKey> = emptySet(),
-        rKs: Set<ForigenKey> = emptySet()
-) {
+        rKs: Set<ForigenKey> = emptySet(),
+        val database: Database
+) : Seraliziable<Table, Database> {
 
     constructor(
             name: String,
             columns: Set<Column>,
             primaryKeys: Set<PrimaryKey>,
+            database: Database,
             foreignKeys: Set<ForigenKey> = emptySet(),
             referencingKeys: Set<ForigenKey> = emptySet()
-    ) : this(name, columns.groupBy { it.name }.mapValues { it.value.first() }, primaryKeys, foreignKeys, referencingKeys)
+    ) : this(name, columns.groupBy { it.name }.mapValues { it.value.first() }, primaryKeys, foreignKeys, referencingKeys, database)
 
     private var _foreignKeys: Set<ForigenKey> = fKs
     private var _referencingKeys: Set<ForigenKey> = rKs
@@ -100,27 +105,71 @@ class Table(
     val objectName = name.toObjectName()
     val className = name.toClassName()
 
+    var objectDisplayName = objectName
+    var classDisplayName = className
+
+    override val data get() = Data(this)
+
+    class Data(val name: String, val columns: List<Column>, val pks: Set<Pair<String, Int>>, val className: String, val objectName: String) : Seralizer<Table, Database> {
+        constructor(table: Table) : this(table.name, table.columns.values.toList(), table.primaryKeys.map { Pair(it.key.name, it.index) }.toSet(), table.classDisplayName, table.objectDisplayName)
+
+        override fun create(parent: Database): Table {
+            val t = Table(name, columns.toSet(), pks.map { (key, idx) -> PrimaryKey(idx, columns.find { it.name == key }!!) }.toSet(), parent)
+            t.classDisplayName = className
+            t.objectDisplayName = objectName
+
+            return t
+        }
+
+    }
+
+    inner class Display(val isObject: Boolean) : EditableItem() {
+        override var displayName
+            get() = objectDisplayName
+            set(v) {
+                objectDisplayName = v
+            }
+
+        override var otherDisplayName
+            get() = classDisplayName
+            set(v) {
+                classDisplayName = v
+            }
+
+        override val name: String = (if (isObject) "Object: " else "Class: ") + this@Table.toString()
+
+        override val root: Parent = vbox {
+            paddingTop = 20
+            propTextBox("Object Name: ", model.displayName)
+            propTextBox("Class Name: ", model.otherDisplayName)
+        }
+    }
+
+    val blacklisted = mutableSetOf<TableElement>()
+
     fun toKotlin(tableNames: Set<String>) = "${makeForObject(tableNames)}${if (doDAO) "\n\n\n" + makeForClass(tableNames) else ""}"
 
-    val badNames = columns.keys + setOf(className, objectName)
+    val badClassNames get() = (database.tables.flatMap { listOf(it.classDisplayName, it.objectDisplayName) } + columns.filter { it.value !in blacklisted }.map { it.value.classDisplayName }).toSet()
+    val badObjectNames get() = (database.tables.flatMap { listOf(it.classDisplayName, it.objectDisplayName) } + columns.filter { it.value !in blacklisted }.map { it.value.objectDisplayName }).toSet()
 
     fun makeForObject(tableNames: Set<String>): String =
             buildString {
-                append("object $objectName : ")
+
+                append("object $objectDisplayName : ")
                 when (pkType) {
                     PKType.Int -> "IntIdTable(\"$name\", \"${primaryKeys.first().key.name}\")"
                     PKType.Long -> "LongIdTable(\"$name\", \"${primaryKeys.first().key.name}\")"
                     PKType.CompositeInt -> "IntIdTable(\"$name\", \"${getPkString(primaryKeys)}\")"
                     PKType.CompositeLong -> "LongIdTable(\"$name\", \"${getPkString(primaryKeys)}\")"
                     else -> "Table(\"$name\")"
-                }.also { append(it) }
+                }.let { append(it) }
 
                 appendln(" {")
                 appendln()
 
                 appendln("\t// Database Columns\n")
 
-                columns.values.forEach {
+                columns.values.filter { it !in blacklisted }.forEach {
                     append("\t")
                     append(it.makeForObject())
 
@@ -133,23 +182,23 @@ class Table(
                     appendln()
                 }
 
-                if (foreignKeys.isNotEmpty()) {
+                if (foreignKeys.any { it !in blacklisted }) {
                     appendln("\n")
 
                     appendln("\t// Foreign/Imported Keys (One to Many)\n")
 
-                    foreignKeys.forEach {
+                    foreignKeys.filter { it !in blacklisted }.forEach {
                         append("\t")
-                        appendln(it.makeForeignForObject(badNames + tableNames))
+                        appendln(it.makeForeignForObject())
                     }
                 }
 
-                if (referencingKeys.isNotEmpty()) {
+                if (referencingKeys.any { it !in blacklisted }) {
                     appendln("\n")
 
                     appendln("\t// Referencing/Exported Keys (One to Many)\n")
 
-                    appendln("\t// Not present in object")
+                    appendln("\t// ${referencingKeys.count { it !in blacklisted }} keys.  Not present in object")
                 }
 
                 appendln("}")
@@ -169,24 +218,24 @@ class Table(
                     else -> "<ERROR>"
                 }
 
-                appendln("class $className(id: EntityID<$keyType>) : ${keyType}Entity(id) {")
+                appendln("class $classDisplayName(id: EntityID<$keyType>) : ${keyType}Entity(id) {")
 
-                appendln("\tcompanion object : ${keyType}EntityClass<$className>($objectName) {")
+                appendln("\tcompanion object : ${keyType}EntityClass<$classDisplayName>($objectDisplayName) {")
 
                 append("\t\t")
                 appendln("fun idFromPKs(" +
-                        primaryKeys.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
+                        primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
                         "): " +
                         (if (pkType == PKType.CompositeInt || pkType == PKType.Int) "Int" else "Long") +
                         " = " +
-                        getPkIdString(primaryKeys))
+                        getPkIdString(primaryKeys.filter { it.key !in blacklisted }.toSet()))
                 appendln()
 
                 append("\t\t")
                 appendln("fun findByPKs(" +
-                        primaryKeys.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
+                        primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
                         ") = findById(idFromPKs(" +
-                        primaryKeys.joinToString(", ") { it.key.name } +
+                        primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { it.key.name } +
                         "))")
 
                 if (pkType.composite) {
@@ -194,17 +243,17 @@ class Table(
 
                     append("\t\t")
                     appendln("operator fun com.rnett.daogen.get(" +
-                            primaryKeys.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
+                            primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
                             ") = findByPKs(" +
-                            primaryKeys.joinToString(", ") { it.key.name } +
+                            primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { it.key.name } +
                             ")")
                     appendln()
 
                     append("\t\t")
                     appendln("fun new(" +
-                            primaryKeys.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
-                            ", init: $className.() -> Unit) = new(idFromPKs(" +
-                            primaryKeys.joinToString(", ") { it.key.name } +
+                            primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
+                            ", init: $classDisplayName.() -> Unit) = new(idFromPKs(" +
+                            primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { it.key.name } +
                             "), init)")
                 }
 
@@ -212,31 +261,30 @@ class Table(
 
                 appendln("\t// Database Columns\n")
 
-                columns.values.forEach {
+                columns.values.filter { it !in blacklisted }.forEach {
                     append("\t")
-                    appendln(it.makeForClass(objectName))
+                    appendln(it.makeForClass(objectDisplayName))
                 }
 
-                if (foreignKeys.isNotEmpty()) {
+                if (foreignKeys.any { it !in blacklisted }) {
                     appendln("\n")
 
                     appendln("\t// Foreign/Imported Keys (One to Many)\n")
 
-                    foreignKeys.forEach {
+                    foreignKeys.filter { it !in blacklisted }.forEach {
                         append("\t")
-                        appendln(it.makeForeignForClass(badNames + tableNames))
+                        appendln(it.makeForeignForClass())
                     }
                 }
 
-                if (referencingKeys.isNotEmpty()) {
+                if (referencingKeys.any { it !in blacklisted }) {
                     appendln("\n")
 
                     appendln("\t// Referencing/Exported Keys (One to Many)\n")
 
-                    referencingKeys.forEach {
+                    referencingKeys.filter { it !in blacklisted }.forEach {
                         append("\t")
-                        appendln(it.makeReferencingForClass(badNames + tableNames,
-                                referencingKeys.groupBy { it.fromTableName }[it.fromTableName]?.count() ?: 0 > 1))
+                        appendln(it.makeReferencingForClass())
                     }
                 }
 
@@ -245,22 +293,20 @@ class Table(
                 appendln("\t// Helper Methods\n")
 
                 appendln("\toverride fun equals(other: Any?): Boolean {")
-                appendln("\t\tif(other == null || other !is $className)")
+                appendln("\t\tif(other == null || other !is $classDisplayName)")
                 appendln("\t\t\treturn false")
                 appendln()
-                appendln("\t\treturn ${primaryKeys.map { it.key.name }.joinToString(" && ") { "$it == other.$it" }}")
+                appendln("\t\treturn ${primaryKeys.filter { it.key !in blacklisted }.map { it.key.name }.joinToString(" && ") { "$it == other.$it" }}")
                 appendln("\t}")
 
                 appendln("\n")
 
-                appendln("\toverride fun hashCode(): Int = ${primaryKeys.first().key.name}")
+                appendln("\toverride fun hashCode(): Int = ${primaryKeys.first { it.key !in blacklisted }.key.name}")
 
                 appendln("\n")
 
                 if (columns.values.filter { it.isNameColumn }.size == 1)
-                    columns.values.find { it.isNameColumn }!!.also {
-                        appendln("\toverride fun toString() = ${it.name}")
-                    }
+                    appendln("\toverride fun toString() = ${columns.values.find { it.isNameColumn }!!.name}")
 
                 appendln("}")
 
@@ -270,7 +316,7 @@ class Table(
         return buildString {
             appendln(name + ":")
 
-            appendln("\tPrimary Key(s): ${primaryKeys.sortedBy { it.index }.joinToString(", ")}")
+            appendln("\tPrimary Key(s): ${primaryKeys.filter { it.key !in blacklisted }.sortedBy { it.index }.joinToString(", ")}")
             appendln()
 
             columns.forEach {
@@ -300,16 +346,33 @@ class Table(
         if (other !is Table) return false
 
         if (name != other.name) return false
+        if (columns != other.columns) return false
+        if (primaryKeys != other.primaryKeys) return false
+        if (_foreignKeys != other._foreignKeys) return false
+        if (_referencingKeys != other._referencingKeys) return false
+        if (objectDisplayName != other.objectDisplayName) return false
+        if (classDisplayName != other.classDisplayName) return false
+        if (blacklisted != other.blacklisted) return false
 
         return true
     }
 
-    override fun hashCode(): Int = name.hashCode()
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + columns.hashCode()
+        result = 31 * result + primaryKeys.hashCode()
+        result = 31 * result + _foreignKeys.hashCode()
+        result = 31 * result + _referencingKeys.hashCode()
+        result = 31 * result + objectDisplayName.hashCode()
+        result = 31 * result + classDisplayName.hashCode()
+        result = 31 * result + blacklisted.hashCode()
+        return result
+    }
 
 
     companion object {
-        operator fun invoke(name: String): Table {
-            val cols = DB.connection!!.metaData.getColumns(null, null, name, null).use {
+        operator fun invoke(name: String, database: Database): Table {
+            val cols = DB.connection!!.metaData.getColumns(null, null, name, null).let {
                 generateSequence {
                     if (it.next()) {
 
@@ -345,7 +408,7 @@ class Table(
                 }.filterNotNull().toList()  // must be inside the use() block
             }.groupBy({ it.name }, { it }).mapValues { it.value.first() }
 
-            val pks = DB.connection!!.metaData.getPrimaryKeys(null, null, name).use {
+            val pks = DB.connection!!.metaData.getPrimaryKeys(null, null, name).let {
                 generateSequence {
                     if (it.next()) {
                         Pair(it.getString(4), it.getInt(5))
@@ -357,7 +420,7 @@ class Table(
 
             */
 
-            return Table(name, cols.values.toSet(), pks.toSet())
+            return Table(name, cols.values.toSet(), pks.toSet(), database)
         }
     }
 }
