@@ -72,7 +72,6 @@ To see the version of the jar, use `--version`.
 
 ## TODO / Does not support
  * Quoted names in Postgres
- * A UI
  * Better naming
  * Support for more ids / primary keys (dependent on Exposed [mostly])
- * via (how do I use this?  no Exposed docs)
+ * via
