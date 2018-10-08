@@ -123,7 +123,7 @@ class Table(
 
     }
 
-    inner class Display(val isObject: Boolean) : EditableItem() {
+    inner class Display internal constructor(val isObject: Boolean) : EditableItem() {
         override var displayName
             get() = objectDisplayName
             set(v) {
@@ -423,22 +423,7 @@ class Table(
             return Table(name, cols.values.toSet(), pks.toSet(), database)
         }
     }
-}
 
-class Test(val i1: Int, val i2: Int) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Test) return false
-
-        if (i1 != other.i1) return false
-        if (i2 != other.i2) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = i1
-        result = 31 * result + i2
-        return result
-    }
+    val classDisplay by lazy { Display(false) }
+    val objectDisplay by lazy { Display(true) }
 }

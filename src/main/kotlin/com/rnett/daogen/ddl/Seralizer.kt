@@ -7,6 +7,3 @@ interface Seralizer<T, PARENT_TYPE> {
 interface Seraliziable<T, P> {
     val data: Seralizer<T, P>
 }
-
-fun main(args: Array<String>) {
-}

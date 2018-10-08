@@ -17,6 +17,14 @@ import tornadofx.*
 import java.io.File
 import kotlin.properties.Delegates
 
+
+//TODO error handeling if I try to set to a bad name
+//TODO not auto-generating bad names
+//TODO make sure I hit all bad names (other tables?)
+//TODO save package statement on import
+
+
+
 val DB_CHANGED = EventType<DBChangeEvent>("DB_CHANGE")
 
 class DBChangeEvent : Event(DB_CHANGED)
@@ -96,8 +104,10 @@ class AppView : View() {
 
     init {
         tablesList.selectionModel.selectedItemProperty().addListener { _, _, new ->
-            objectRoot = ObjectItem(tables[new]!!)
-            classRoot = ClassItem(tables[new]!!)
+            if (!new.isNullOrBlank()) {
+                objectRoot = ObjectItem(tables[new]!!)
+                classRoot = ClassItem(tables[new]!!)
+            }
         }
 
         objectTree.selectionModel.selectedItemProperty().addListener { _, _, new ->
@@ -114,16 +124,17 @@ class AppView : View() {
     }
 
     fun generateCode(): String {
-        val t = db?.generateKotlin(exportFile?.path ?: "") ?: ""
+        val t = db?.generateKotlin(saveFile?.path ?: "") ?: ""
         codeArea.text = t
         return t
     }
 
     var isSaveCurrent: Boolean by Delegates.observable(false) { _, _, new ->
         if (new)
-            title = "Daogen: " + (saveFile?.nameWithoutExtension ?: "Untitled") + (exportFile?.name ?: "None")
+            title = "Daogen: " + (saveFile?.nameWithoutExtension ?: "Untitled") + " ==> " + (exportFile?.name ?: "None")
         else
-            title = "Daogen: *" + (saveFile?.nameWithoutExtension ?: "Untitled") + (exportFile?.name ?: "None")
+            title = "Daogen: *" + (saveFile?.nameWithoutExtension ?: "Untitled") + " ==> " + (exportFile?.name
+                    ?: "None")
     }
 
     init {
@@ -139,6 +150,8 @@ class AppView : View() {
                     export()
             }
         }
+
+        this.primaryStage.isMaximized = true
     }
 
     fun saveDB(file: File) {
@@ -163,16 +176,16 @@ class AppView : View() {
 
     var saveFile: File? by Delegates.observable(null as File?) { _, _, new ->
         if (isSaveCurrent)
-            title = "Daogen: " + (new?.nameWithoutExtension ?: "Untitled") + " => " + (exportFile?.name ?: "None")
+            title = "Daogen: " + (new?.nameWithoutExtension ?: "Untitled") + " ==> " + (exportFile?.name ?: "None")
         else
-            title = "Daogen: *" + (new?.nameWithoutExtension ?: "Untitled") + " => " + (exportFile?.name ?: "None")
+            title = "Daogen: *" + (new?.nameWithoutExtension ?: "Untitled") + " ==> " + (exportFile?.name ?: "None")
     }
 
     var exportFile: File? by Delegates.observable(null as File?) { _, _, new ->
         if (isSaveCurrent)
-            title = "Daogen: " + (saveFile?.nameWithoutExtension ?: "Untitled") + " => " + (new?.name ?: "None")
+            title = "Daogen: " + (saveFile?.nameWithoutExtension ?: "Untitled") + " ==> " + (new?.name ?: "None")
         else
-            title = "Daogen: *" + (saveFile?.nameWithoutExtension ?: "Untitled") + " => " + (new?.name ?: "None")
+            title = "Daogen: *" + (saveFile?.nameWithoutExtension ?: "Untitled") + " ==> " + (new?.name ?: "None")
     }
 
     class NewModal : Fragment("New Daogen") {
@@ -284,18 +297,20 @@ class AppView : View() {
                 if (it.exists())
                     try {
                         loadDB(it)
-                        exportFile = it
+
+                        saveFile = it
+                        exportFile = file
+
+                        autosaveCheckbox.isSelected = true
+                        autoExportCheckbox.isSelected = true
                     } catch (e: Exception) {
+                        e.printStackTrace()
                         //TODO error handling
                     }
             }
 
         }
     }
-
-    //TODO error handeling if I try to set to a bad name
-    //TODO things don't update properly
-    //TODO something in export file isn't working.  Name isn't getting updated properly on open
 
     fun importFrom() {
         val file = chooseFile("Import From", arrayOf(kotlinFilter), mode = FileChooserMode.Single).firstOrNull()

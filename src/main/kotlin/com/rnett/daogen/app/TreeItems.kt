@@ -7,7 +7,7 @@ import javafx.event.Event
 import javafx.scene.control.TreeItem
 
 class ClassItem(val table: Table) : TreeItem<String>(table.classDisplayName), HasItem {
-    override val item = table.Display(false)
+    override val item = table.classDisplay
 
     init {
         children.addAll(
@@ -27,7 +27,7 @@ class ClassItem(val table: Table) : TreeItem<String>(table.classDisplayName), Ha
 }
 
 class ObjectItem(val table: Table) : TreeItem<String>(table.objectDisplayName), HasItem {
-    override val item = table.Display(true)
+    override val item = table.objectDisplay
 
     init {
         children.addAll(
@@ -68,7 +68,7 @@ class RKsItem(val table: Table, val isObject: Boolean) : TreeItem<String>("Refer
 }
 
 class ColumnItem(val column: Column, val isObject: Boolean) : TreeItem<String>(if (isObject) column.objectDisplayName else column.classDisplayName), HasItem {
-    override val item = column.Display(isObject)
+    override val item = column.Display(isObject) //I have no idea why using the fields NPEs
 
     init {
         item.model.displayName.addListener { _ ->
@@ -81,7 +81,7 @@ class ColumnItem(val column: Column, val isObject: Boolean) : TreeItem<String>(i
 }
 
 class FKItem(val key: ForigenKey, val isObject: Boolean) : TreeItem<String>(if (isObject) key.fkObjectName else key.fkClassName), HasItem {
-    override val item = key.FKDisplay(isObject)
+    override val item = if (isObject) key.fkObjectDisplay else key.fkClassDisplay
 
     init {
         item.model.displayName.addListener { _ ->
@@ -94,7 +94,7 @@ class FKItem(val key: ForigenKey, val isObject: Boolean) : TreeItem<String>(if (
 }
 
 class RKItem(val key: ForigenKey) : TreeItem<String>(key.rkClassName), HasItem {
-    override val item = key.RKDisplay()
+    override val item = key.rkDisplay
 
     init {
         item.model.displayName.addListener { _ ->

@@ -13,8 +13,8 @@ abstract class EditableItem : View() {
     val model = EditableItemModel()
 
     inner class EditableItemModel : ItemViewModel<EditableItem>(this@EditableItem) {
-        val displayName = bind(EditableItem::displayName)
-        val otherDisplayName = bind(EditableItem::otherDisplayName)
+        val displayName = bind(EditableItem::displayName, true)
+        val otherDisplayName = bind(EditableItem::otherDisplayName, true)
     }
 
     fun VBox.propTextBox(label: String, property: Property<String>) = hbox {

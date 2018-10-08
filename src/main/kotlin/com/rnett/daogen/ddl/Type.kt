@@ -87,9 +87,3 @@ data class DataType(val type: Type, val args: List<String>) {
     override fun toString(): String = type.getDatabaseFor(*args.toTypedArray())
 }
 
-fun main(args: Array<String>) {
-    println(Type.IntType.getKotlinFor("test"))
-    println(Type.Varchar.getKotlinFor("test2", "varchar(100)"))
-    println(Type.Decimal.getKotlinFor("test3", "decimal(20, 10)"))
-}
-

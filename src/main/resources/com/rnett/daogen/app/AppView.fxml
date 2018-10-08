@@ -58,7 +58,12 @@
                                                                             shift="DOWN" shortcut="UP"/>
                                                     </accelerator>
                                                 </MenuItem>
-                                                <MenuItem mnemonicParsing="false" onAction="#importFrom" text="Import"/>
+                                                <MenuItem mnemonicParsing="false" onAction="#importFrom" text="Import">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="I" control="DOWN" meta="UP"
+                                                                            shift="UP" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
                                             </items>
                                         </Menu>
                                     </menus>

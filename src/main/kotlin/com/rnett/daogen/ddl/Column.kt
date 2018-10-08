@@ -68,6 +68,9 @@ data class Column(
             "name" in objectDisplayName.toLowerCase())
             && (type.type == Type.Varchar || type.type == Type.Text)
 
+
+    val classDisplay by lazy { Display(false) }
+    val objectDisplay by lazy { Display(true) }
 }
 
 class ForigenKey(
@@ -151,7 +154,7 @@ class ForigenKey(
 
     }
 
-    inner class FKDisplay(val isObject: Boolean) : EditableItem() {
+    inner class FKDisplay internal constructor(val isObject: Boolean) : EditableItem() {
         override var displayName
             get() = fkObjectName
             set(v) {
@@ -185,7 +188,7 @@ class ForigenKey(
         }
     }
 
-    inner class RKDisplay : EditableItem() {
+    inner class RKDisplay internal constructor() : EditableItem() {
         override var displayName
             get() = rkClassName
             set(v) {
@@ -249,5 +252,8 @@ class ForigenKey(
         return result
     }
 
+    val fkClassDisplay by lazy { FKDisplay(false) }
+    val fkObjectDisplay by lazy { FKDisplay(true) }
+    val rkDisplay by lazy { RKDisplay() }
 
 }
