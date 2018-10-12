@@ -24,6 +24,13 @@
                                                                             shift="UP" shortcut="UP"/>
                                                     </accelerator>
                                                 </MenuItem>
+                                                <MenuItem mnemonicParsing="false" onAction="#fromDB"
+                                                          text="Refresh From DB">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="R" control="DOWN" meta="UP"
+                                                                            shift="UP" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
                                                 <MenuItem mnemonicParsing="false" onAction="#openSaved" text="Open">
                                                     <accelerator>
                                                         <KeyCodeCombination alt="UP" code="O" control="DOWN" meta="UP"

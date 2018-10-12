@@ -69,8 +69,8 @@ data class Column(
             && (type.type == Type.Varchar || type.type == Type.Text)
 
 
-    val classDisplay by lazy { Display(false) }
-    val objectDisplay by lazy { Display(true) }
+    val classDisplay get() = Display(false)
+    val objectDisplay get() = Display(true)
 }
 
 class ForigenKey(
@@ -252,8 +252,8 @@ class ForigenKey(
         return result
     }
 
-    val fkClassDisplay by lazy { FKDisplay(false) }
-    val fkObjectDisplay by lazy { FKDisplay(true) }
-    val rkDisplay by lazy { RKDisplay() }
+    val fkClassDisplay get() = FKDisplay(false)
+    val fkObjectDisplay get() = FKDisplay(true)
+    val rkDisplay get() = RKDisplay()
 
 }

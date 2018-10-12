@@ -7,18 +7,18 @@ import com.rnett.daogen.app.exportStarter
 import com.rnett.daogen.database.DB
 import java.sql.Connection
 
-data class Database(val tables: MutableList<Table> = mutableListOf()) : Seraliziable<Database, Any?> {
+data class Database(val schema: String?, val tables: MutableList<Table> = mutableListOf()) : Seraliziable<Database, Any?> {
 
     override val data get() = Data(this)
 
-    class Data(val tables: List<Table.Data>, val refs: List<ForigenKey.Data>) : Seralizer<Database, Any?> {
+    class Data(val schema: String?, val tables: List<Table.Data>, val refs: List<ForigenKey.Data>) : Seralizer<Database, Any?> {
 
-        constructor(db: Database) : this(db.tables.map { it.data }, db.tables.flatMap { it.foreignKeys + it.referencingKeys }.toSet().map { it.data })
+        constructor(db: Database) : this(db.schema, db.tables.map { it.data }, db.tables.flatMap { it.foreignKeys + it.referencingKeys }.toSet().map { it.data })
 
         fun create() = create(null)
 
         override fun create(parent: Any?): Database {
-            val db = Database()
+            val db = Database(schema)
             db.tables.addAll(tables.map { it.create(db) })
 
             val keys = refs.map { it.create(db) }.toSet()
@@ -36,14 +36,14 @@ data class Database(val tables: MutableList<Table> = mutableListOf()) : Seralizi
 
         operator fun get(json: String) = fromJson(json)
 
-        fun fromConnection(connectionString: String) = DB.connect(connectionString).generateDB(connectionString)
-        operator fun invoke(connectionString: String) = fromConnection(connectionString)
+        fun fromConnection(connectionString: String, schema: String? = "public") = DB.connect(connectionString).generateDB(connectionString, schema)
+        operator fun invoke(connectionString: String, schema: String? = "public") = fromConnection(connectionString, schema)
     }
 }
 
-fun Connection.generateDB(connectionString: String, schema: String? = null): Database {
+fun Connection.generateDB(connectionString: String, schema: String? = "public"): Database {
 
-    val db = Database()
+    val db = Database(schema)
 
     val tableNames = DB.connection!!.metaData.getTables(null, schema, "%", arrayOf("TABLE")).let {
         generateSequence {

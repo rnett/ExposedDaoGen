@@ -12,16 +12,22 @@ import javafx.scene.Parent
 import javafx.scene.control.*
 import javafx.scene.layout.AnchorPane
 import javafx.scene.layout.Priority
+import javafx.scene.paint.Color
+import javafx.scene.text.Font
+import javafx.scene.text.FontWeight
 import javafx.stage.FileChooser
 import tornadofx.*
 import java.io.File
 import kotlin.properties.Delegates
 
-
+//TODO checkboxes for nullable (only doable if server is nullable, may want to set un-nullable)  Do I want this?
+//TODO better update handling
+//TODO beter export change handling
 //TODO error handeling if I try to set to a bad name
 //TODO not auto-generating bad names
 //TODO make sure I hit all bad names (other tables?)
 //TODO save package statement on import
+//TODO use relative path for db file in exports
 
 
 
@@ -221,6 +227,48 @@ class AppView : View() {
 
     }
 
+    class RefreshModal : Fragment("Refresh from DB") {
+
+        var connStr = ""
+
+        val model = RefreshModalModel()
+
+        override val root: Parent = vbox {
+            hbox {
+                alignment = Pos.CENTER
+                label("JDBC Connection String:").hboxConstraints { marginRight = 10.0; marginLeft = 10.0 }
+                textfield {
+                    hboxConstraints { hGrow = Priority.ALWAYS; marginRight = 10.0 }
+                    prefColumnCount = 70
+                    textProperty().bindBidirectional(model.connStr)
+                }
+            }
+
+            hbox {
+                vboxConstraints { marginTop = 20.0 }
+                alignment = Pos.CENTER
+                label("Warning: This will overwrite any changes you have made") {
+                    textFill = Color.RED
+                    font = Font.font(font.family, FontWeight.BOLD, 14.0)
+                }
+            }
+
+            hbox {
+                vboxConstraints { marginTop = 20.0 }
+                alignment = Pos.CENTER
+                button("Refresh").setOnAction {
+                    close()
+                }
+            }
+
+        }
+
+        inner class RefreshModalModel : ItemViewModel<RefreshModal>(this@RefreshModal) {
+            var connStr = bind(RefreshModal::connStr, true)
+        }
+
+    }
+
 
     fun newDB() {
         val modal = find<NewModal>()
@@ -228,8 +276,28 @@ class AppView : View() {
         val connStr = modal.connStr
 
         saveFile = null
+        exportFile = null
         db = Database.fromConnection(connStr)
         isSaveCurrent = true
+
+        generateCode()
+    }
+
+    fun fromDB() {
+        val modal = find<RefreshModal>()
+        modal.openModal(block = true)
+        val connStr = modal.connStr
+
+        db = Database.fromConnection(connStr)
+        isSaveCurrent = true
+
+        generateCode()
+
+        if (saveFile != null)
+            save()
+
+        if (exportFile != null)
+            export()
     }
 
     fun openSaved() {

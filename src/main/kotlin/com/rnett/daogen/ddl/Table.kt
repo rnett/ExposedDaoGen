@@ -242,7 +242,7 @@ class Table(
                     appendln()
 
                     append("\t\t")
-                    appendln("operator fun com.rnett.daogen.get(" +
+                    appendln("operator fun get(" +
                             primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
                             ") = findByPKs(" +
                             primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { it.key.name } +
@@ -372,7 +372,7 @@ class Table(
 
     companion object {
         operator fun invoke(name: String, database: Database): Table {
-            val cols = DB.connection!!.metaData.getColumns(null, null, name, null).let {
+            val cols = DB.connection!!.metaData.getColumns(null, database.schema, name, null).let {
                 generateSequence {
                     if (it.next()) {
 
@@ -408,7 +408,7 @@ class Table(
                 }.filterNotNull().toList()  // must be inside the use() block
             }.groupBy({ it.name }, { it }).mapValues { it.value.first() }
 
-            val pks = DB.connection!!.metaData.getPrimaryKeys(null, null, name).let {
+            val pks = DB.connection!!.metaData.getPrimaryKeys(null, database.schema, name).let {
                 generateSequence {
                     if (it.next()) {
                         Pair(it.getString(4), it.getInt(5))
@@ -424,6 +424,6 @@ class Table(
         }
     }
 
-    val classDisplay by lazy { Display(false) }
-    val objectDisplay by lazy { Display(true) }
+    val classDisplay get() = Display(false)
+    val objectDisplay get() = Display(true)
 }
