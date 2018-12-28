@@ -9,6 +9,7 @@ import com.rnett.daogen.database.DB
 import javafx.scene.Parent
 import tornadofx.*
 import java.sql.JDBCType
+import java.util.Collections.emptySet
 import kotlin.contracts.ExperimentalContracts
 
 data class PrimaryKey(val index: Int, val key: Column) {
@@ -248,6 +249,11 @@ class Table(
 
                 if (options.serialization) {
 
+                    if (options.dataTransfer) {
+                        +"\t\tactual fun getItem(id: $pkType) = transaction{ super.get(id) }"
+                        +"\t\tactual fun allItems() = transaction{ super.all().toList() }"
+                    }
+
                     if (!options.serializationIncludeColumns) {
 
                         append("\t\t")
@@ -413,6 +419,14 @@ class Table(
                 +"@Serializer($classDisplayName::class)"
                 +"companion object : KSerializer<$classDisplayName>"
                 codeBlock {
+
+
+                    if (options.dataTransfer) {
+                        +"expect fun getItem(id: $pkType): $classDisplayName"
+                        +"expect fun allItems(): List<$classDisplayName>"
+                        //TODO ways to get forigen/referencing key objects
+                    }
+
                     +"override val descriptor: SerialDescriptor\n"
                     +"override fun serialize(output: Encoder, obj: $classDisplayName)\n"
                     +"override fun deserialize(input: Decoder): $classDisplayName\n"
@@ -457,6 +471,11 @@ class Table(
 
             +"\t@Serializer($classDisplayName::class)"
             +"\tactual companion object : KSerializer<$classDisplayName> {"
+
+            if (options.dataTransfer) {
+                +"\t\tactual fun getItem(id: $pkType): $classDisplayName = callEndpoint(this::getItem, ${options.requestClientName}, id)"
+                +"\t\tactual fun allItems(): List<$classDisplayName> = callEndpoint(this::allItems, ${options.requestClientName})"
+            }
 
             if (!options.serializationIncludeColumns) {
 
@@ -539,6 +558,12 @@ class Table(
 
         +"}"
     }
+
+    //TODO kframe-data imports
+    fun makeEndpointAdd() = listOf(
+            "EndpointManager.addEndpoint($classDisplayName.Companion::getItem, $classDisplayName, ${pkType}Serializer)",
+            "EndpointManager.addEndpoint($classDisplayName.Companion::allItems, $classDisplayName.list)"
+    )
 
     override fun toString(): String {
         return buildString {

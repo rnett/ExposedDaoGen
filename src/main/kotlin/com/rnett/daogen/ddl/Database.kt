@@ -87,8 +87,12 @@ data class GenerationOptions(
         var serializationIncludeColumns: Boolean = true,
         var doDao: Boolean = true,
         var multiplatform: Boolean = true,
-        var nullableByDefault: Boolean = false
-)
+        var nullableByDefault: Boolean = false,
+        var dataTransfer: Boolean = true,
+        var requestClientQualifiedName: String = ""
+) {
+    val requestClientName get() = requestClientQualifiedName.substringAfterLast('.')
+}
 
 @ExperimentalContracts
 fun Database.generateKotlin(options: GenerationOptions, exportFilePath: String = "") = buildString {
@@ -113,6 +117,9 @@ import kotlinx.serialization.internal.HexConverter
 import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
+
+    if (options.dataTransfer && options.requestClientQualifiedName.isNotBlank())
+        appendln("import ${options.requestClientQualifiedName}")
 
     appendln()
 
@@ -141,6 +148,9 @@ import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
 
+    if (options.dataTransfer && options.requestClientQualifiedName.isNotBlank())
+        appendln("import ${options.requestClientQualifiedName}")
+
     appendln()
 
     this@generateKotlinJS.tables.forEach {
@@ -165,6 +175,9 @@ import kotlinx.serialization.internal.HexConverter
 import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
+
+    if (options.dataTransfer && options.requestClientQualifiedName.isNotBlank())
+        appendln("import ${options.requestClientQualifiedName}")
 
     appendln()
 
@@ -215,6 +228,9 @@ import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
 
+            if (options.dataTransfer && options.requestClientQualifiedName.isNotBlank())
+                appendln("import ${options.requestClientQualifiedName}")
+
             appendln()
 
             try {
@@ -244,6 +260,12 @@ import kotlinx.serialization.internal.HexConverter
 import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
+
+            if (options.dataTransfer)
+                appendln("import com.rnett.kframe.data.callEndpoint")
+
+            if (options.dataTransfer && options.requestClientQualifiedName.isNotBlank())
+                appendln("import ${options.requestClientQualifiedName}")
 
             appendln()
 
@@ -275,6 +297,9 @@ import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
 
+            if (options.dataTransfer && options.requestClientQualifiedName.isNotBlank())
+                appendln("import ${options.requestClientQualifiedName}")
+
             appendln()
 
             try {
@@ -285,3 +310,9 @@ import kotlinx.serialization.internal.SerialClassDescImpl
         })
     }
 }
+
+/*
+    TODO imports:
+        import com.rnett.kframe.data.EndpointManager
+        import com.rnett.kframe.data.addEndpoint
+ */
