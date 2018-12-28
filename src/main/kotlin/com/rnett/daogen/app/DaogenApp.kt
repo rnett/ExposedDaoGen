@@ -320,6 +320,8 @@ class AppView : View() {
         var doDao = true
         var multiplatform = true
         var nullableByDefault = true
+        var dataTransfer = true
+        var requestClientQualifiedName = ""
 
         fun setOptions(options: GenerationOptions) {
             model.packageName.value = options.outPackage
@@ -327,6 +329,8 @@ class AppView : View() {
             model.doDao.value = options.doDao
             model.multiplatform.value = options.multiplatform
             model.nullableByDefault.value = options.nullableByDefault
+            model.dataTransfer.value = options.dataTransfer
+            model.requestClientQualifiedName.value = options.requestClientQualifiedName
         }
 
         val model = OptionsModalModel()
@@ -394,6 +398,29 @@ class AppView : View() {
                     }
                 }
             }
+            hbox {
+                vboxConstraints { marginBottom = 10.0 }
+                alignment = Pos.CENTER
+                label("Data transfer (kframe-data):") {
+                    hboxConstraints { marginRight = 10.0 }
+                }
+                checkbox {
+                    selectedProperty().bindBidirectional(model.dataTransfer)
+                    selectedProperty().onChange {
+                        fireEvent(DBChangeEvent())
+                    }
+                }
+            }
+            hbox {
+                vboxConstraints { marginBottom = 10.0 }
+                alignment = Pos.CENTER
+                label("Request Client qualified name:").hboxConstraints { marginRight = 10.0; marginLeft = 10.0 }
+                textfield {
+                    hboxConstraints { marginRight = 10.0 }
+                    prefColumnCount = 30
+                    textProperty().bindBidirectional(model.requestClientQualifiedName)
+                }
+            }
 
             hbox {
                 alignment = Pos.CENTER
@@ -410,6 +437,8 @@ class AppView : View() {
             var doDao = bind(OptionsModal::doDao, true)
             var multiplatform = bind(OptionsModal::multiplatform, true)
             var nullableByDefault = bind(OptionsModal::nullableByDefault, true)
+            var dataTransfer = bind(OptionsModal::dataTransfer, true)
+            var requestClientQualifiedName = bind(OptionsModal::requestClientQualifiedName, true)
 
         }
 
@@ -531,6 +560,8 @@ class AppView : View() {
         generationOptions.doDao = modal.doDao
         generationOptions.multiplatform = modal.multiplatform
         generationOptions.nullableByDefault = modal.nullableByDefault
+        generationOptions.dataTransfer = modal.dataTransfer
+        generationOptions.requestClientQualifiedName = modal.requestClientQualifiedName
 
         if (!generationOptions.multiplatform)
             codeTabs.selectionModel.select(0)

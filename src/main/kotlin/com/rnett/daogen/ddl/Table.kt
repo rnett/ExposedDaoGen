@@ -422,8 +422,8 @@ class Table(
 
 
                     if (options.dataTransfer) {
-                        +"expect fun getItem(id: $pkType): $classDisplayName"
-                        +"expect fun allItems(): List<$classDisplayName>"
+                        +"fun getItem(id: $pkType): $classDisplayName"
+                        +"fun allItems(): List<$classDisplayName>"
                         //TODO ways to get forigen/referencing key objects
                     }
 
