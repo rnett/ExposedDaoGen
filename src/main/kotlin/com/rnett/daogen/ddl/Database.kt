@@ -5,7 +5,9 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.rnett.daogen.app.exportStarter
 import com.rnett.daogen.database.DB
+import java.io.File
 import java.sql.Connection
+import kotlin.contracts.ExperimentalContracts
 
 data class Database(val schema: String?, val tables: MutableList<Table> = mutableListOf()) : Seraliziable<Database, Any?> {
 
@@ -36,12 +38,12 @@ data class Database(val schema: String?, val tables: MutableList<Table> = mutabl
 
         operator fun get(json: String) = fromJson(json)
 
-        fun fromConnection(connectionString: String, schema: String? = "public") = DB.connect(connectionString).generateDB(connectionString, schema)
-        operator fun invoke(connectionString: String, schema: String? = "public") = fromConnection(connectionString, schema)
+        fun fromConnection(connectionString: String, schema: String? = "public", useTables: List<String>? = null) = DB.connect(connectionString).generateDB(connectionString, schema, useTables)
+        operator fun invoke(connectionString: String, schema: String? = "public", useTables: List<String>? = null) = fromConnection(connectionString, schema, useTables)
     }
 }
 
-fun Connection.generateDB(connectionString: String, schema: String? = "public"): Database {
+fun Connection.generateDB(connectionString: String, schema: String? = "public", useTables: List<String>?): Database {
 
     val db = Database(schema)
 
@@ -51,7 +53,7 @@ fun Connection.generateDB(connectionString: String, schema: String? = "public"):
         }.filterNotNull().toList()  // must be inside the use() block
     }
 
-    val tables = tableNames.map { Pair(it, Table(it, db)) }.toMap()
+    val tables = tableNames.filter { useTables?.contains(it) ?: true }.map { Pair(it, Table(it, db)) }.toMap()
 
     val allKeys = tables.flatMap {
         DB.connection!!.metaData.getImportedKeys(null, null, it.key).let {
@@ -79,28 +81,207 @@ fun Connection.generateDB(connectionString: String, schema: String? = "public"):
     return db
 }
 
-fun Database.generateKotlin(exportFilePath: String = "") = buildString {
+data class GenerationOptions(
+        var outPackage: String,
+        var serialization: Boolean = true,
+        var serializationIncludeColumns: Boolean = true,
+        var doDao: Boolean = true,
+        var multiplatform: Boolean = true,
+        var nullableByDefault: Boolean = false
+)
+
+@ExperimentalContracts
+fun Database.generateKotlin(options: GenerationOptions, exportFilePath: String = "") = buildString {
 
     if (exportFilePath.isNotBlank())
         appendln(exportStarter + exportFilePath)
 
+    appendln("\npackage ${options.outPackage}\n")
+
     appendln()
 
     appendln("""
-import org.jetbrains.exposed.dao.IntEntity
-import org.jetbrains.exposed.dao.IntEntityClass
-import org.jetbrains.exposed.dao.IntIdTable
-import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.SizedIterable
+import org.jetbrains.exposed.dao.*
 """.trimIndent())
+    if (options.serialization)
+        appendln("""
+import kotlinx.serialization.*
+import kotlinx.serialization.internal.HexConverter
+import kotlinx.serialization.internal.StringDescriptor
+import kotlinx.serialization.internal.SerialClassDescImpl
+    """.trimIndent())
+
     appendln()
 
     val tableNames = this@generateKotlin.tables.flatMap { listOf(it.name, it.classDisplayName, it.objectDisplayName) }.toSet()
 
     this@generateKotlin.tables.forEach {
         try {
-            appendln(it.toKotlin(tableNames))
+            appendln(it.toKotlin(options))
         } catch (e: Exception) {
         }
+    }
+}
+
+@ExperimentalContracts
+fun Database.generateKotlinJS(options: GenerationOptions): String = buildString {
+
+    appendln("\npackage ${options.outPackage}\n")
+
+    appendln()
+
+    if (options.serialization)
+        appendln("""
+import kotlinx.serialization.*
+import kotlinx.serialization.internal.HexConverter
+import kotlinx.serialization.internal.StringDescriptor
+import kotlinx.serialization.internal.SerialClassDescImpl
+    """.trimIndent())
+
+    appendln()
+
+    this@generateKotlinJS.tables.forEach {
+        try {
+            appendln(it.makeClassForJS(options))
+        } catch (e: Exception) {
+        }
+    }
+}
+
+@ExperimentalContracts
+fun Database.generateKotlinCommon(options: GenerationOptions): String = buildString {
+
+    appendln("\npackage ${options.outPackage}\n")
+
+    appendln()
+
+    if (options.serialization)
+        appendln("""
+import kotlinx.serialization.*
+import kotlinx.serialization.internal.HexConverter
+import kotlinx.serialization.internal.StringDescriptor
+import kotlinx.serialization.internal.SerialClassDescImpl
+    """.trimIndent())
+
+    appendln()
+
+    this@generateKotlinCommon.tables.forEach {
+        try {
+            appendln(it.makeClassForCommon(options))
+        } catch (e: Exception) {
+        }
+    }
+}
+
+
+@ExperimentalContracts
+fun Database.generateToFileSystemMultiplatform(baseDir: String, options: GenerationOptions) {
+    generateCommon(File(baseDir.trimEnd('/') + "/commonMain/kotlin/${options.outPackage.replace('.', '/')}"), options)
+    generateJS(File(baseDir.trimEnd('/') + "/jsMain/kotlin/${options.outPackage.replace('.', '/')}"), options)
+    generateJVM(File(baseDir.trimEnd('/') + "/jvmMain/kotlin/${options.outPackage.replace('.', '/')}"), options)
+}
+
+@ExperimentalContracts
+fun Database.generateToFileSystemPureJVM(baseDir: String, options: GenerationOptions) {
+    generateJVM(File(baseDir.trimEnd('/') + "/" + options.outPackage.replace('.', '/')), options)
+}
+
+@ExperimentalContracts
+private fun Database.generateJVM(packageBase: File, options: GenerationOptions) {
+    packageBase.mkdirs()
+    tables.forEach {
+        val out = File(packageBase.path.trimEnd('/') + "/${it.name}.kt")
+        out.createNewFile()
+        out.writeText(buildString {
+            appendln("\npackage ${options.outPackage}\n")
+
+            appendln()
+
+            appendln("""
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.SizedIterable
+import org.jetbrains.exposed.dao.*
+""".trimIndent())
+
+            if (options.serialization)
+                appendln("""
+import kotlinx.serialization.*
+import kotlinx.serialization.internal.HexConverter
+import kotlinx.serialization.internal.StringDescriptor
+import kotlinx.serialization.internal.SerialClassDescImpl
+    """.trimIndent())
+
+            appendln()
+
+            try {
+                appendln(it.toKotlin(options))
+            } catch (e: Exception) {
+            }
+
+        })
+    }
+}
+
+@ExperimentalContracts
+private fun Database.generateJS(packageBase: File, options: GenerationOptions) {
+    packageBase.mkdirs()
+    tables.forEach {
+        val out = File(packageBase.path.trimEnd('/') + "/${it.name}.kt")
+        out.createNewFile()
+        out.writeText(buildString {
+            appendln("\npackage ${options.outPackage}\n")
+
+            appendln()
+
+            if (options.serialization)
+                appendln("""
+import kotlinx.serialization.*
+import kotlinx.serialization.internal.HexConverter
+import kotlinx.serialization.internal.StringDescriptor
+import kotlinx.serialization.internal.SerialClassDescImpl
+    """.trimIndent())
+
+            appendln()
+
+            try {
+                appendln(it.makeClassForJS(options))
+            } catch (e: Exception) {
+            }
+
+        })
+    }
+}
+
+@ExperimentalContracts
+private fun Database.generateCommon(packageBase: File, options: GenerationOptions) {
+    packageBase.mkdirs()
+    tables.forEach {
+        val out = File(packageBase.path.trimEnd('/') + "/${it.name}.kt")
+        out.createNewFile()
+        out.writeText(buildString {
+            appendln("\npackage ${options.outPackage}\n")
+
+            appendln()
+
+            if (options.serialization)
+                appendln("""
+import kotlinx.serialization.*
+import kotlinx.serialization.internal.HexConverter
+import kotlinx.serialization.internal.StringDescriptor
+import kotlinx.serialization.internal.SerialClassDescImpl
+    """.trimIndent())
+
+            appendln()
+
+            try {
+                appendln(it.makeClassForCommon(options))
+            } catch (e: Exception) {
+            }
+
+        })
     }
 }

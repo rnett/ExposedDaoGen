@@ -10,17 +10,28 @@ class ClassItem(val table: Table) : TreeItem<String>(table.classDisplayName), Ha
     override val item = table.classDisplay
 
     init {
-        children.addAll(
-                ColumnsItem(table, false),
-                FKsItem(table, false),
-                RKsItem(table, false))
-        isExpanded = true
+        if (table.canMakeClass) {
+            children.addAll(
+                    ColumnsItem(table, false),
+                    FKsItem(table, false),
+                    RKsItem(table, false))
+            isExpanded = true
 
-        item.model.displayName.addListener { _ ->
-            Event.fireEvent(this@ClassItem, TreeModificationEvent(TreeItem.valueChangedEvent<String>(), this@ClassItem))
-        }
-        item.model.otherDisplayName.addListener { _ ->
-            Event.fireEvent(this@ClassItem, TreeModificationEvent(TreeItem.valueChangedEvent<String>(), this@ClassItem))
+            item.model.displayName.addListener { _ ->
+                Event.fireEvent(this@ClassItem, TreeModificationEvent(TreeItem.valueChangedEvent<String>(), this@ClassItem))
+            }
+            item.model.otherDisplayName.addListener { _ ->
+                Event.fireEvent(this@ClassItem, TreeModificationEvent(TreeItem.valueChangedEvent<String>(), this@ClassItem))
+            }
+        } else {
+            children.add(TreeItem<String>("Can't make table with ${
+            when {
+                table.pkType == Table.PKType.Composite -> "multiple"
+                table.primaryKeys.isEmpty() -> "no"
+                else -> "these"
+            }
+            } primary keys"))
+            isExpanded = true
         }
     }
 
@@ -47,7 +58,7 @@ class ObjectItem(val table: Table) : TreeItem<String>(table.objectDisplayName), 
 
 class ColumnsItem(val table: Table, val isObject: Boolean) : TreeItem<String>("Columns") {
     init {
-        children.addAll(table.columns.values.map { ColumnItem(it, isObject) })
+        children.addAll(table.columns.values.map { ColumnItem(it, isObject, it in table.primaryKeys.map { it.key }) })
         isExpanded = true
     }
 }
@@ -67,7 +78,10 @@ class RKsItem(val table: Table, val isObject: Boolean) : TreeItem<String>("Refer
     }
 }
 
-class ColumnItem(val column: Column, val isObject: Boolean) : TreeItem<String>(if (isObject) column.objectDisplayName else column.classDisplayName), HasItem {
+class ColumnItem(val column: Column, val isObject: Boolean, val pk: Boolean) : TreeItem<String>(
+        (if (pk) "* " else "") +
+                if (isObject) column.objectDisplayName else column.classDisplayName
+), HasItem {
     override val item = column.Display(isObject) //I have no idea why using the fields NPEs
 
     init {

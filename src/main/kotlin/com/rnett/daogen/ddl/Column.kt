@@ -13,19 +13,69 @@ data class Column(
         val notNull: Boolean,
         val autoIncrement: Boolean
 ) : TableElement {
-    fun makeForObject(): String = "val $objectDisplayName = ${type.getKotlin(name)}" +
-            (if (!notNull) ".nullable()" else "") +
+
+    fun useNullable(options: GenerationOptions) = (!notNull && options.nullableByDefault) || forceNullable
+
+    fun makeForObject(options: GenerationOptions): String = "val $objectDisplayName = ${type.getKotlin(name)}" +
+            (if (useNullable(options)) ".nullable()" else "") +
             if (autoIncrement) ".autoIncrement()" else ""
 
-    fun makeForClass(objectName: String): String = "${if (mutable) "var" else "val"} $classDisplayName by $objectName.$objectDisplayName"
+    fun makeForClass(objectName: String, internalPrivate: Boolean, options: GenerationOptions): String {
+        if (type.type == Type.Decimal) {
+            if (!internalPrivate)
+                return buildString {
+                    appendln("${if (mutable) "var" else "val"} ${classDisplayName}BD by $objectName.$objectDisplayName")
+                    appendln("\t${if (options.multiplatform) "actual " else ""}${if (mutable) "var" else "val"} $classDisplayName")
+                    appendln("\t\tget() = ${classDisplayName}BD.toDouble()")
+                    if (mutable)
+                        appendln("\t\tset(v){ ${classDisplayName}BD = v.toBigDecimal() }")
+                }
+            else {
+                return buildString {
+                    appendln("var ${classDisplayName}BD by $objectName.$objectDisplayName")
+                    if (!mutable)
+                        appendln("\t\tprivate set")
+                    appendln("\tactual var ${classDisplayName}")
+                    appendln("\t\tget() = ${classDisplayName}BD.toDouble()")
+
+                    append("\t\t")
+                    if (!mutable)
+                        append("private")
+
+                    appendln("set(v){ ${classDisplayName}BD = v.toBigDecimal() }")
+
+                }
+            }
+        } else {
+            if (!internalPrivate)
+                return "${if (options.multiplatform) "actual " else ""}${if (mutable) "var" else "val"} $classDisplayName by $objectName.$objectDisplayName"
+            else {
+                return buildString {
+                    appendln("${if (options.multiplatform) "actual " else ""}var $classDisplayName by $objectName.$objectDisplayName")
+                    if (!mutable)
+                        appendln("\t\tprivate set")
+                }
+            }
+        }
+    }
 
     override fun toString(): String = "$classDisplayName $type" +
             (if (notNull) " not null" else "") +
             if (autoIncrement) " auto increment" else ""
 
+    fun makeForCommon(): String {
+        return "${if (mutable) "var" else "val"} $classDisplayName: ${type.type.kotlinType}"
+    }
+
+    fun makeForJS(): String {
+        return "actual ${if (mutable) "var" else "val"} $classDisplayName: ${type.type.kotlinType}"
+    }
+
     var classDisplayName: String = name
     var objectDisplayName: String = name
     var mutable: Boolean = false
+
+    var forceNullable = false
 
     inner class Display(val isObject: Boolean) : EditableItem() {
 
@@ -47,6 +97,12 @@ data class Column(
                 this@Column.mutable = v
             }
 
+        var forceNullable
+            get() = this@Column.forceNullable
+            set(v) {
+                this@Column.forceNullable = v
+            }
+
         override val name: String = "Column in " + (if (isObject) "Object: " else "Class: ") + this@Column.toString()
 
         val mutableModel = MutableModel()
@@ -56,10 +112,12 @@ data class Column(
             propTextBox("Object Property Name: ", model.displayName)
             propTextBox("Class Property Name: ", model.otherDisplayName)
             propCheckBox("Mutable: ", mutableModel.mutable)
+            propCheckBox("Force Nullable: ", mutableModel.forceNullable)
         }
 
         inner class MutableModel : ItemViewModel<Display>(this@Display) {
             val mutable = bind(Display::mutable, true)
+            val forceNullable = bind(Display::forceNullable, true)
         }
     }
 
@@ -83,6 +141,8 @@ class ForigenKey(
 
     var nullable = !fromColumn.notNull
 
+    fun useNullable(options: GenerationOptions) = fromColumn.useNullable(options)
+
     private fun getRKName(): String =
             if (toTable.referencingKeys.count { it.fromTable == fromTable } > 1)
                 "${fromTable.classDisplayName}_${fromColumn.classDisplayName}"
@@ -92,8 +152,11 @@ class ForigenKey(
                         .removeSuffix("Id")
                         .removeSuffix("id")
                         .pluralize()
-
-                if (test !in toTable.badClassNames) test else test + "_rk"
+                val bads = (toTable.badClassNames + toTable.objectDisplayName + fromTable.objectDisplayName)
+                if (test !in bads)
+                    test
+                else
+                    test + "_rk"
             }
 
     private fun getFKName(badNames: Set<String>): String {
@@ -207,16 +270,16 @@ class ForigenKey(
 
     //TODO mutable.  class fk only?
 
-    fun makeReferencingForClass(): String = "val $rkClassName by ${fromTable.classDisplayName} " +
-            (if (nullable) "optionalReferrersOn" else "referrersOn") +
+    fun makeReferencingForClass(options: GenerationOptions): String = "${/*if(options.multiplatform) "actual " else*/ ""}val $rkClassName: SizedIterable<${fromTable.classDisplayName}> by ${fromTable.classDisplayName} " +
+            (if (useNullable(options)) "optionalReferrersOn" else "referrersOn") +
             " ${fromTable.objectDisplayName}.$fkObjectName"
 
-    fun makeForeignForObject() = "val $fkObjectName = " +
-            (if (nullable) "optReference" else "reference") +
+    fun makeForeignForObject(options: GenerationOptions) = "val $fkObjectName = " +
+            (if (useNullable(options)) "optReference" else "reference") +
             "(\"${fromColumn.name}\", ${toTable.objectDisplayName})"
 
-    fun makeForeignForClass() = "${if (mutable) "var" else "val"} $fkClassName by ${toTable.classDisplayName} " +
-            (if (nullable) "optionalReferencedOn" else "referencedOn") +
+    fun makeForeignForClass(options: GenerationOptions) = "${/*if(options.multiplatform) "actual " else*/ ""}${if (mutable) "var" else "val"} $fkClassName: ${toTable.classDisplayName + if (useNullable(options)) "?" else ""} by ${toTable.classDisplayName} " +
+            (if (useNullable(options)) "optionalReferencedOn" else "referencedOn") +
             " ${fromTable.objectDisplayName}.$fkObjectName"
 
     override fun toString(): String = "${fromTable.name}.${fromColumn.name} refers to ${toTable.name}.${toColumn.name}"
@@ -252,8 +315,17 @@ class ForigenKey(
         return result
     }
 
+    fun makeForeignForJS() = "actual ${if (mutable) "var" else "val"} $fkClassName: ${toTable.classDisplayName}" +
+            (if (nullable) "?" else "")
+
+    fun makeReferencingForJS() = "actual val $rkClassName: SizedIterable<${fromTable.classDisplayName}>"
+
+    fun makeForeignForCommon() = "expect ${if (mutable) "var" else "val"} $fkClassName: ${toTable.classDisplayName}" +
+            (if (nullable) "?" else "")
+
+    fun makeReferencingForCommon() = "expect val $rkClassName: SizedIterable<${fromTable.classDisplayName}>"
+
     val fkClassDisplay get() = FKDisplay(false)
     val fkObjectDisplay get() = FKDisplay(true)
     val rkDisplay get() = RKDisplay()
-
 }

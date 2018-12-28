@@ -71,6 +71,23 @@
                                                                             shift="UP" shortcut="UP"/>
                                                     </accelerator>
                                                 </MenuItem>
+                                                <MenuItem mnemonicParsing="false" onAction="#exportFiles"
+                                                          text="Export to Structured Files">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="DOWN" code="E" control="DOWN" meta="UP"
+                                                                            shift="UP" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
+                                            </items>
+                                        </Menu>
+                                        <Menu mnemonicParsing="false" text="Options">
+                                            <items>
+                                                <MenuItem mnemonicParsing="false" onAction="#options" text="Options">
+                                                    <accelerator>
+                                                        <KeyCodeCombination alt="UP" code="O" control="DOWN" meta="UP"
+                                                                            shift="DOWN" shortcut="UP"/>
+                                                    </accelerator>
+                                                </MenuItem>
                                             </items>
                                         </Menu>
                                     </menus>
@@ -172,16 +189,70 @@
                                 </AnchorPane>
                                 <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
                                     <children>
-                                        <TextArea fx:id="codeArea" editable="false" prefHeight="763.0" prefWidth="523.0"
-                                                  AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                                  AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                            <tooltip>
-                                                <Tooltip text="Generated Code"/>
-                                            </tooltip>
-                                        </TextArea>
-                                        <HBox alignment="CENTER" prefHeight="31.0" prefWidth="373.0"
-                                              AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
-                                              AnchorPane.topAnchor="0.0"/>
+                                        <TabPane fx:id="codeTabs" prefHeight="200.0" prefWidth="200.0"
+                                                 tabClosingPolicy="UNAVAILABLE" AnchorPane.bottomAnchor="0.0"
+                                                 AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                                                 AnchorPane.topAnchor="0.0">
+                                            <tabs>
+                                                <Tab text="JVM">
+                                                    <content>
+                                                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0"
+                                                                    prefWidth="200.0">
+                                                            <children>
+                                                                <TextArea fx:id="codeAreaJVM" editable="false"
+                                                                          prefHeight="763.0" prefWidth="523.0"
+                                                                          AnchorPane.bottomAnchor="0.0"
+                                                                          AnchorPane.leftAnchor="0.0"
+                                                                          AnchorPane.rightAnchor="0.0"
+                                                                          AnchorPane.topAnchor="0.0">
+                                                                    <tooltip>
+                                                                        <Tooltip text="Generated Code"/>
+                                                                    </tooltip>
+                                                                </TextArea>
+                                                            </children>
+                                                        </AnchorPane>
+                                                    </content>
+                                                </Tab>
+                                                <Tab text="JS/Other">
+                                                    <content>
+                                                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0"
+                                                                    prefWidth="200.0">
+                                                            <children>
+                                                                <TextArea fx:id="codeAreaJS" editable="false"
+                                                                          prefHeight="763.0" prefWidth="523.0"
+                                                                          AnchorPane.bottomAnchor="0.0"
+                                                                          AnchorPane.leftAnchor="0.0"
+                                                                          AnchorPane.rightAnchor="0.0"
+                                                                          AnchorPane.topAnchor="0.0">
+                                                                    <tooltip>
+                                                                        <Tooltip text="Generated Code"/>
+                                                                    </tooltip>
+                                                                </TextArea>
+                                                            </children>
+                                                        </AnchorPane>
+                                                    </content>
+                                                </Tab>
+                                                <Tab text="Common">
+                                                    <content>
+                                                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0"
+                                                                    prefWidth="200.0">
+                                                            <children>
+                                                                <TextArea fx:id="codeAreaCommon" editable="false"
+                                                                          prefHeight="763.0" prefWidth="523.0"
+                                                                          AnchorPane.bottomAnchor="0.0"
+                                                                          AnchorPane.leftAnchor="0.0"
+                                                                          AnchorPane.rightAnchor="0.0"
+                                                                          AnchorPane.topAnchor="0.0">
+                                                                    <tooltip>
+                                                                        <Tooltip text="Generated Code"/>
+                                                                    </tooltip>
+                                                                </TextArea>
+                                                            </children>
+                                                        </AnchorPane>
+                                                    </content>
+                                                </Tab>
+                                            </tabs>
+                                        </TabPane>
                                     </children>
                                 </AnchorPane>
                                 <AnchorPane prefHeight="200.0" prefWidth="200.0">

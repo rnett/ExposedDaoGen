@@ -1,21 +1,20 @@
 package com.rnett.daogen
 
 import com.rnett.daogen.database.DB
-import com.rnett.daogen.ddl.generateDB
-import com.rnett.daogen.ddl.generateKotlin
+import com.rnett.daogen.ddl.*
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import java.io.File
-
-var doDAO = true
+import kotlin.contracts.ExperimentalContracts
 
 /**
- * args: <connectionString> [-f outFile] [-s schema] [-nodao] [-cc] [-q]
+ * args: <connectionString> [-p package] [-f outFile] [-s schema] [-tables <tablesCSVList>] [-nodao] [-noserialize] [-multiplatform <JVM/JS/Common>] [-cc] [-q]
  */
+@ExperimentalContracts
 fun main(args: Array<String>) {
 
     if (args.contains("--version")) {
-        println("Daogen version 1.0.0")
+        println("Daogen version 2.0.0")
         return
     }
 
@@ -28,10 +27,23 @@ fun main(args: Array<String>) {
 
     val schema = args["-s"]
 
-    if ("-nodao" in args)
-        doDAO = false
+    val pack = args["-p"] ?: "unknown"
 
-    val out = DB.connect(dbString).generateDB(dbString, schema).generateKotlin()
+    val tables = args["-tables"]
+
+    val doDao = "-nodao" !in args
+    val doSerialize = "-noserialize" !in args
+    val multiplatform = args["-multiplatform"]
+
+    val options = GenerationOptions(pack, doSerialize, true, doDao, multiplatform != null)
+
+    val db = DB.connect(dbString).generateDB(dbString, schema, tables?.split(",")?.map { it.trim() })
+
+    val out = when (multiplatform) {
+        "JS" -> db.generateKotlinJS(options)
+        "Common" -> db.generateKotlinCommon(options)
+        else -> db.generateKotlin(options)
+    }
 
     if ("-cc" in args) {
         val sel = StringSelection(out)

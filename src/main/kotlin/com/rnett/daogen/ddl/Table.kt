@@ -2,12 +2,14 @@ package com.rnett.daogen.ddl
 
 import com.cesarferreira.pluralize.pluralize
 import com.cesarferreira.pluralize.singularize
+import com.rnett.core.advancedBuildString
+import com.rnett.core.advancedBuildStringNoContract
 import com.rnett.daogen.app.EditableItem
 import com.rnett.daogen.database.DB
-import com.rnett.daogen.doDAO
 import javafx.scene.Parent
 import tornadofx.*
 import java.sql.JDBCType
+import kotlin.contracts.ExperimentalContracts
 
 data class PrimaryKey(val index: Int, val key: Column) {
     override fun toString(): String = key.name
@@ -32,7 +34,7 @@ private fun getPkString(pks: Set<PrimaryKey>): String {
     return sb1.toString()
 }
 
-private fun getPkIdString(pks: Set<PrimaryKey>): String {
+private fun getPkIdString(pks: List<PrimaryKey>): String {
 
     val list = pks.map { it.key.name }
 
@@ -83,24 +85,21 @@ class Table(
     }
 
     //TODO use varchar as a key by hashcoding it?  What about on postgres side?
-    enum class PKType(val valid: Boolean = true, val composite: Boolean = false) {
-        Int, Long, Other(false), CompositeInt(composite = true), CompositeLong(composite = true), CompositeOther(false, true)
+    enum class PKType(val valid: Boolean = true) {
+        Int, Long, Composite, Other(false)
     }
+
+    val primaryKey get() = primaryKeys.first()
 
     val pkType
         get() =
-            if (primaryKeys.size > 1)
-                when {
-                    primaryKeys.all { it.key.type.type == Type.IntType } -> PKType.CompositeInt
-                    primaryKeys.all { it.key.type.type == Type.IntType || it.key.type.type == Type.LongType } -> PKType.CompositeInt
-                    else -> PKType.CompositeOther
-                }
-            else
-                when {
-                    primaryKeys.first().key.type.type == Type.IntType -> PKType.Int
-                    primaryKeys.first().key.type.type == Type.LongType -> PKType.Int
-                    else -> PKType.Other
-                }
+            when {
+                primaryKeys.size > 1 && primaryKeys.all { it.key.type.type == Type.IntType || it.key.type.type == Type.LongType } -> PKType.Composite
+                primaryKeys.size == 0 -> PKType.Other
+                primaryKey.key.type.type == Type.IntType -> PKType.Int
+                primaryKey.key.type.type == Type.LongType -> PKType.Long
+                else -> PKType.Other
+            }
 
     val objectName = name.toObjectName()
     val className = name.toClassName()
@@ -108,13 +107,15 @@ class Table(
     var objectDisplayName = objectName
     var classDisplayName = className
 
+    var makeConstructor = false
+
     override val data get() = Data(this)
 
-    class Data(val name: String, val columns: List<Column>, val pks: Set<Pair<String, Int>>, val className: String, val objectName: String) : Seralizer<Table, Database> {
-        constructor(table: Table) : this(table.name, table.columns.values.toList(), table.primaryKeys.map { Pair(it.key.name, it.index) }.toSet(), table.classDisplayName, table.objectDisplayName)
+    class Data(val name: String, val columns: List<Column>, val pks: List<Pair<String, Int>>, val className: String, val objectName: String, val makeConstructor: Boolean) : Seralizer<Table, Database> {
+        constructor(table: Table) : this(table.name, table.columns.values.toList(), table.primaryKeys.map { Pair(it.key.name, it.index) }, table.classDisplayName, table.objectDisplayName, table.makeConstructor)
 
         override fun create(parent: Database): Table {
-            val t = Table(name, columns.toSet(), pks.map { (key, idx) -> PrimaryKey(idx, columns.find { it.name == key }!!) }.toSet(), parent)
+            val t = Table(name, columns.toSet(), pks.map { pair -> PrimaryKey(pair.second, columns.find { it.name == pair.first }!!) }.toSet(), parent)
             t.classDisplayName = className
             t.objectDisplayName = objectName
 
@@ -136,33 +137,49 @@ class Table(
                 classDisplayName = v
             }
 
+        var makeConstructor
+            get() = this@Table.makeConstructor
+            set(v) {
+                this@Table.makeConstructor = v
+            }
+
         override val name: String = (if (isObject) "Object: " else "Class: ") + this@Table.toString()
+
+        inner class MakeConstructorModel : ItemViewModel<Display>(this@Display) {
+            val makeConstructor = bind(Display::makeConstructor, true)
+        }
+
+        val makeConstructorModel = MakeConstructorModel()
 
         override val root: Parent = vbox {
             paddingTop = 20
             propTextBox("Object Name: ", model.displayName)
             propTextBox("Class Name: ", model.otherDisplayName)
+            propCheckBox("Make Constructor: ", makeConstructorModel.makeConstructor)
         }
     }
 
     val blacklisted = mutableSetOf<TableElement>()
 
-    fun toKotlin(tableNames: Set<String>) = "${makeForObject(tableNames)}${if (doDAO) "\n\n\n" + makeForClass(tableNames) else ""}"
+    @ExperimentalContracts
+    fun toKotlin(options: GenerationOptions) =
+            "${makeForObject(options)}${if (options.doDao) "\n\n\n" + makeForClass(options) else ""}"
 
     val badClassNames get() = (database.tables.flatMap { listOf(it.classDisplayName, it.objectDisplayName) } + columns.filter { it.value !in blacklisted }.map { it.value.classDisplayName }).toSet()
     val badObjectNames get() = (database.tables.flatMap { listOf(it.classDisplayName, it.objectDisplayName) } + columns.filter { it.value !in blacklisted }.map { it.value.objectDisplayName }).toSet()
 
-    fun makeForObject(tableNames: Set<String>): String =
-            buildString {
+    @ExperimentalContracts
+    fun makeForObject(options: GenerationOptions): String =
+            advancedBuildString {
 
                 append("object $objectDisplayName : ")
-                when (pkType) {
-                    PKType.Int -> "IntIdTable(\"$name\", \"${primaryKeys.first().key.name}\")"
-                    PKType.Long -> "LongIdTable(\"$name\", \"${primaryKeys.first().key.name}\")"
-                    PKType.CompositeInt -> "IntIdTable(\"$name\", \"${getPkString(primaryKeys)}\")"
-                    PKType.CompositeLong -> "LongIdTable(\"$name\", \"${getPkString(primaryKeys)}\")"
+                append(when (pkType) {
+                    PKType.Int -> "IntIdTable(\"$name\", \"${primaryKey.key.name}\")"
+                    PKType.Long -> "LongIdTable(\"$name\", \"${primaryKey.key.name}\")"
+                    PKType.Composite -> "IntIdTable(\"$name\", \"${getPkString(primaryKeys)}\")"
+
                     else -> "Table(\"$name\")"
-                }.let { append(it) }
+                })
 
                 appendln(" {")
                 appendln()
@@ -171,7 +188,7 @@ class Table(
 
                 columns.values.filter { it !in blacklisted }.forEach {
                     append("\t")
-                    append(it.makeForObject())
+                    append(it.makeForObject(options))
 
                     primaryKeys.find { pk -> pk.key == it }?.apply {
                         if (primaryKeys.count() > 1)
@@ -179,82 +196,133 @@ class Table(
                         else
                             append(".primaryKey()")
                     }
-                    appendln()
+                    +""
                 }
 
-                if (foreignKeys.any { it !in blacklisted }) {
+                if (foreignKeys.any { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }) {
                     appendln("\n")
 
                     appendln("\t// Foreign/Imported Keys (One to Many)\n")
 
-                    foreignKeys.filter { it !in blacklisted }.forEach {
+                    foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
                         append("\t")
-                        appendln(it.makeForeignForObject())
+                        appendln(it.makeForeignForObject(options))
                     }
                 }
 
-                if (referencingKeys.any { it !in blacklisted }) {
+                if (referencingKeys.any { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }) {
                     appendln("\n")
 
                     appendln("\t// Referencing/Exported Keys (One to Many)\n")
 
-                    appendln("\t// ${referencingKeys.count { it !in blacklisted }} keys.  Not present in object")
+                    appendln("\t// ${referencingKeys.count { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }} keys.  Not present in object")
                 }
 
-                appendln("}")
+                +"}"
             }
 
-    fun makeForClass(tableNames: Set<String>): String =
-            buildString {
+    fun makeForClass(options: GenerationOptions): String =
+            advancedBuildStringNoContract {
+                //TODO use the advanced features
 
-                if (pkType == PKType.Other || pkType == PKType.CompositeOther)
-                    throw IllegalArgumentException("Can not (yet) make classes for non-Int or Long keyed or composite keyed tables")
+                if (pkType == PKType.Composite || pkType == PKType.Other)
+                    return@advancedBuildStringNoContract
 
                 val keyType = when (pkType) {
                     PKType.Int -> "Int"
                     PKType.Long -> "Long"
-                    PKType.CompositeInt -> "Int"
-                    PKType.CompositeLong -> "Long"
                     else -> "<ERROR>"
                 }
 
-                appendln("class $classDisplayName(id: EntityID<$keyType>) : ${keyType}Entity(id) {")
+                appendln("${if (options.multiplatform) "actual " else ""}class $classDisplayName(${if (options.serialization) "val myId" else "id"}: EntityID<$keyType>) : ${keyType}Entity(${if (options.serialization) "myId" else "id"}) {\n")
 
-                appendln("\tcompanion object : ${keyType}EntityClass<$classDisplayName>($objectDisplayName) {")
+                if (options.serialization)
+                    appendln("\t@Serializer($classDisplayName::class)")
 
-                append("\t\t")
-                appendln("fun idFromPKs(" +
-                        primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
-                        "): " +
-                        (if (pkType == PKType.CompositeInt || pkType == PKType.Int) "Int" else "Long") +
-                        " = " +
-                        getPkIdString(primaryKeys.filter { it.key !in blacklisted }.toSet()))
-                appendln()
+                append("\t${if (options.multiplatform) "actual " else ""}companion object : ${keyType}EntityClass<$classDisplayName>($objectDisplayName)")
 
-                append("\t\t")
-                appendln("fun findByPKs(" +
-                        primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
-                        ") = findById(idFromPKs(" +
-                        primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { it.key.name } +
-                        "))")
+                if (options.serialization)
+                    append(", KSerializer<$classDisplayName>")
 
-                if (pkType.composite) {
-                    appendln()
+                appendln("{")
+
+                if (options.serialization) {
+
+                    if (!options.serializationIncludeColumns) {
+
+                        append("\t\t")
+                        appendln("${if (options.multiplatform) "actual " else ""}override val descriptor: SerialDescriptor = StringDescriptor.withName(\"$classDisplayName\")")
+                        appendln()
+
+                        append("\t\t")
+                        appendln("${if (options.multiplatform) "actual " else ""}override fun serialize(output: Encoder, obj: $classDisplayName) {")
+                        appendln("\t\t\toutput.encodeString(HexConverter.printHexBinary(obj.${primaryKey.key.name}.toString().toUtf8Bytes()))")
+                        appendln("\t\t}\n")
+
+                        append("\t\t")
+                        appendln("${if (options.multiplatform) "actual " else ""}override fun deserialize(input: Decoder): $classDisplayName {")
+                        appendln("\t\t\treturn $classDisplayName[stringFromUtf8Bytes(HexConverter.parseHexBinary(input.decodeString())).to$pkType()]")
+                        appendln("\t\t}\n")
+                    } else {
+
+                        val indicies = columns.values.filter { it !in blacklisted }.toList().mapIndexed { i, c -> Pair(i, c) }.toMap()
+
+                        val pkIndex = indicies.entries.find { it.value == primaryKey.key }!!.key
+
+                        append("\t\t")
+                        appendln("${if (options.multiplatform) "actual " else ""}override val descriptor: SerialDescriptor = object : SerialClassDescImpl(\"$classDisplayName\") {")
+                        appendln("\t\t\tinit{")
+                        indicies.entries.sortedBy { it.key }.forEach {
+                            appendln("\t\t\t\taddElement(\"${it.value.name}\")")
+                        }
+                        appendln("\t\t\t}")
+                        appendln("\t\t}\n")
+
+                        append("\t\t")
+                        appendln("${if (options.multiplatform) "actual " else ""}override fun serialize(output: Encoder, obj: $classDisplayName) {")
+                        appendln("\t\t\tval compositeOutput: CompositeEncoder = output.beginStructure(descriptor)")
+                        indicies.entries.sortedBy { it.key }.forEach {
+                            appendln("\t\t\tcompositeOutput.encodeStringElement(descriptor, ${it.key}, HexConverter.printHexBinary(obj.${it.value.name}.toString().toUtf8Bytes()))")
+                        }
+                        appendln("\t\t\tcompositeOutput.endStructure(descriptor)")
+                        appendln("\t\t}\n")
+
+                        append("\t\t")
+                        appendln("${if (options.multiplatform) "actual " else ""}override fun deserialize(input: Decoder): $classDisplayName {")
+                        appendln("\t\t\tval inp: CompositeDecoder = input.beginStructure(descriptor)")
+                        appendln("\t\t\tvar id: $pkType? = null")
+                        appendln("\t\t\tloop@ while (true) {")
+
+                        appendln("\t\t\t\twhen (val i = inp.decodeElementIndex(descriptor)) {")
+                        appendln("\t\t\t\t\tCompositeDecoder.READ_DONE -> break@loop")
+                        appendln("\t\t\t\t\t$pkIndex -> id = stringFromUtf8Bytes(HexConverter.parseHexBinary(inp.decodeStringElement(descriptor, i))).to$pkType()")
+                        appendln("\t\t\t\t\telse -> if (i < descriptor.elementsCount) continue@loop else throw SerializationException(\"Unknown index \$i\")")
+                        appendln("\t\t\t\t}")
+                        appendln("\t\t\t}\n")
+                        appendln("\t\t\tinp.endStructure(descriptor)")
+                        appendln("\t\t\tif(id == null)")
+                        appendln("\t\t\t\tthrow SerializationException(\"Id '${primaryKey.key.name}' @ index $pkIndex not found\")")
+                        appendln("\t\t\telse")
+                        appendln("\t\t\t\treturn $classDisplayName[id]")
+
+                        appendln("\t\t}\n")
+
+                    }
 
                     append("\t\t")
-                    appendln("operator fun get(" +
-                            primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
-                            ") = findByPKs(" +
-                            primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { it.key.name } +
-                            ")")
+                    appendln("${if (options.multiplatform) "actual " else ""}fun serializer(): KSerializer<$classDisplayName> = this")
                     appendln()
+                }
 
+                if (makeConstructor) {
                     append("\t\t")
-                    appendln("fun new(" +
-                            primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { "${it.key.name}: ${it.key.type.type.kotlinType}" } +
-                            ", init: $classDisplayName.() -> Unit) = new(idFromPKs(" +
-                            primaryKeys.filter { it.key !in blacklisted }.joinToString(", ") { it.key.name } +
-                            "), init)")
+                    appendln("fun new(${columns.values.filter { it !in blacklisted }.joinToString(", ") {
+                        "${it.name}: ${it.type.type.kotlinType}"
+                    }}) = new {")
+                    columns.values.filter { it !in blacklisted }.forEach {
+                        appendln("\t\t\t_${it.name} = ${it.name}")
+                    }
+                    appendln("\t\t}")
                 }
 
                 appendln("\t}\n")
@@ -263,28 +331,28 @@ class Table(
 
                 columns.values.filter { it !in blacklisted }.forEach {
                     append("\t")
-                    appendln(it.makeForClass(objectDisplayName))
+                    appendln(it.makeForClass(objectDisplayName, makeConstructor, options))
                 }
 
-                if (foreignKeys.any { it !in blacklisted }) {
+                if (foreignKeys.any { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }) {
                     appendln("\n")
 
                     appendln("\t// Foreign/Imported Keys (One to Many)\n")
 
-                    foreignKeys.filter { it !in blacklisted }.forEach {
+                    foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
                         append("\t")
-                        appendln(it.makeForeignForClass())
+                        appendln(it.makeForeignForClass(options))
                     }
                 }
 
-                if (referencingKeys.any { it !in blacklisted }) {
+                if (referencingKeys.any { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }) {
                     appendln("\n")
 
                     appendln("\t// Referencing/Exported Keys (One to Many)\n")
 
-                    referencingKeys.filter { it !in blacklisted }.forEach {
+                    referencingKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
                         append("\t")
-                        appendln(it.makeReferencingForClass())
+                        appendln(it.makeReferencingForClass(options))
                     }
                 }
 
@@ -292,31 +360,197 @@ class Table(
 
                 appendln("\t// Helper Methods\n")
 
-                appendln("\toverride fun equals(other: Any?): Boolean {")
+                appendln("\t${if (options.multiplatform) "actual " else ""}override fun equals(other: Any?): Boolean {")
                 appendln("\t\tif(other == null || other !is $classDisplayName)")
                 appendln("\t\t\treturn false")
                 appendln()
-                appendln("\t\treturn ${primaryKeys.filter { it.key !in blacklisted }.map { it.key.name }.joinToString(" && ") { "$it == other.$it" }}")
+                appendln("\t\treturn ${primaryKey.key.name} == other.${primaryKey.key.name}")
                 appendln("\t}")
 
                 appendln("\n")
-
-                appendln("\toverride fun hashCode(): Int = ${primaryKeys.first { it.key !in blacklisted }.key.name}")
+                appendln("\t${if (options.multiplatform) "actual " else ""}override fun hashCode() = ${primaryKey.key.name}${if (pkType == PKType.Long) ".hashCode()" else ""} ")
 
                 appendln("\n")
 
                 if (columns.values.filter { it.isNameColumn }.size == 1)
-                    appendln("\toverride fun toString() = ${columns.values.find { it.isNameColumn }!!.name}")
+                    appendln("\t${if (options.multiplatform) "actual " else ""}override fun toString() = ${columns.values.find { it.isNameColumn }!!.name}")
 
                 appendln("}")
 
             }
 
+    val canMakeClass get() = pkType != PKType.Composite && pkType != PKType.Other
+
+    @ExperimentalContracts
+    fun makeClassForCommon(options: GenerationOptions) = advancedBuildString {
+
+        if (pkType == PKType.Composite || pkType == PKType.Other)
+            return@advancedBuildString
+
+        +"expect class $classDisplayName"
+        codeBlock {
+            columns.values.filter { it !in blacklisted }.forEach {
+                +it.makeForCommon()
+            }
+            //TODO figure out how I want to handle references.  (probably using kframe-data to make the get operator available)
+
+            /*
+            foreignKeys.filter { it !in blacklisted }.forEach {
+                +it.makeForeignForCommon()
+            }
+            referencingKeys.filter { it !in blacklisted }.forEach {
+                +it.makeReferencingForCommon()
+            }*/
+            +""
+            +"override fun equals(other: Any?): Boolean"
+            +"override fun hashCode(): Int"
+            if (columns.values.filter { it.isNameColumn }.size == 1)
+                +"override fun toString(): String"
+
+
+            if (options.serialization) {
+                +""
+                +"@Serializer($classDisplayName::class)"
+                +"companion object : KSerializer<$classDisplayName>"
+                codeBlock {
+                    +"override val descriptor: SerialDescriptor\n"
+                    +"override fun serialize(output: Encoder, obj: $classDisplayName)\n"
+                    +"override fun deserialize(input: Decoder): $classDisplayName\n"
+                    +"fun serializer(): KSerializer<$classDisplayName>"
+                }
+            }
+        }
+    }
+
+    @ExperimentalContracts
+    fun makeClassForJS(options: GenerationOptions) = advancedBuildString {
+
+        if (pkType == PKType.Composite || pkType == PKType.Other)
+            return@advancedBuildString
+
+        +"actual data class $classDisplayName("
+        +"\t${columns.values.filter { it !in blacklisted }.joinToString(",\n\t") { it.makeForJS() }}"
+        /*
+        +"\t${foreignKeys.filter { it !in blacklisted }.joinToString(",\n\t") { it.makeForeignForJS() }}"
+        +"\t${referencingKeys.filter { it !in blacklisted }.joinToString(",\n\t") { it.makeReferencingForJS() }}"
+        */
+        +"){"
+
+        appendln("\tactual override fun equals(other: Any?): Boolean {")
+        appendln("\t\tif(other == null || other !is $classDisplayName)")
+        appendln("\t\t\treturn false")
+        appendln()
+        appendln("\t\treturn ${primaryKey.key.name} == other.${primaryKey.key.name}")
+        appendln("\t}")
+
+        appendln("\n")
+        appendln("\tactual override fun hashCode() = ${primaryKey.key.name}${if (pkType == PKType.Long) ".hashCode()" else ""}")
+
+        appendln("\n")
+
+        if (columns.values.filter { it.isNameColumn }.size == 1)
+            appendln("\tactual override fun toString() = ${columns.values.find { it.isNameColumn }!!.name}")
+
+        +""
+
+        if (options.serialization) {
+
+            +"\t@Serializer($classDisplayName::class)"
+            +"\tactual companion object : KSerializer<$classDisplayName> {"
+
+            if (!options.serializationIncludeColumns) {
+
+                append("\t\t")
+                appendln("actual override val descriptor: SerialDescriptor = StringDescriptor.withName(\"$classDisplayName\")")
+                appendln()
+
+                append("\t\t")
+                appendln("actual override fun serialize(output: Encoder, obj: $classDisplayName) {")
+                appendln("\t\t\toutput.encodeString(HexConverter.printHexBinary(obj.${primaryKey.key.name}.toString().toUtf8Bytes()))")
+                appendln("\t\t}\n")
+
+                append("\t\t")
+                appendln("actual override fun deserialize(input: Decoder): $classDisplayName {")
+                appendln("\t\t\treturn $classDisplayName[stringFromUtf8Bytes(HexConverter.parseHexBinary(input.decodeString())).toInt()]")
+                appendln("\t\t}\n")
+            } else {
+
+                val indicies = columns.values.filter { it !in blacklisted }.toList().mapIndexed { i, c -> Pair(i, c) }.toMap()
+
+                val pkIndex = indicies.entries.find { it.value == primaryKey.key }
+
+                append("\t\t")
+                appendln("actual override val descriptor: SerialDescriptor = object : SerialClassDescImpl(\"$classDisplayName\") {")
+                appendln("\t\t\tinit{")
+                indicies.entries.sortedBy { it.key }.forEach {
+                    appendln("\t\t\t\taddElement(\"${it.value.name}\")")
+                }
+                appendln("\t\t\t}")
+                appendln("\t\t}\n")
+
+                append("\t\t")
+                appendln("actual override fun serialize(output: Encoder, obj: $classDisplayName) {")
+                appendln("\t\t\tval compositeOutput: CompositeEncoder = output.beginStructure(descriptor)")
+                indicies.entries.sortedBy { it.key }.forEach {
+                    appendln("\t\t\tcompositeOutput.encodeStringElement(descriptor, ${it.key}, HexConverter.printHexBinary(obj.${it.value.name}.toString().toUtf8Bytes()))")
+                }
+                appendln("\t\t\tcompositeOutput.endStructure(descriptor)")
+                appendln("\t\t}\n")
+
+                append("\t\t")
+                appendln("actual override fun deserialize(input: Decoder): $classDisplayName {")
+                appendln("\t\t\tval inp: CompositeDecoder = input.beginStructure(descriptor)")
+
+                indicies.entries.sortedBy { it.key }.forEach {
+                    +"\t\t\tvar temp_${it.value.name}: ${it.value.type.type.kotlinType}? = null"
+                }
+
+                appendln("\t\t\tloop@ while (true) {")
+
+                appendln("\t\t\t\twhen (val i = inp.decodeElementIndex(descriptor)) {")
+                appendln("\t\t\t\t\tCompositeDecoder.READ_DONE -> break@loop")
+
+                indicies.entries.sortedBy { it.key }.forEach { (index, col) ->
+                    +"\t\t\t\t\t$index -> temp_${col.name} = stringFromUtf8Bytes(HexConverter.parseHexBinary(inp.decodeStringElement(descriptor, i)))${col.type.type.fromString}"
+                }
+
+                //appendln("\t\t\t\t\t$pkIndex -> id = HexConverter.parseHexBinary(inp.decodeStringElement(descriptor, i)).toString().toInt()")
+
+                appendln("\t\t\t\t\telse -> if (i < descriptor.elementsCount) continue@loop else throw SerializationException(\"Unknown index \$i\")")
+                appendln("\t\t\t\t}")
+                appendln("\t\t\t}\n")
+                appendln("\t\t\tinp.endStructure(descriptor)")
+
+                +""
+
+                appendln("\t\t\t\treturn $classDisplayName(${indicies.entries.sortedBy { it.key }.map { it.value }.joinToString(",\n\t\t\t\t", "\n\t\t\t\t", "\n\t\t\t") {
+                    "temp_${it.name} ?: throw SerializationException(\"Missing value for ${it.name}\")"
+                }})")
+
+                appendln("\t\t}\n")
+
+            }
+
+            append("\t\t")
+            appendln("actual fun serializer(): KSerializer<$classDisplayName> = this")
+            +"\t}"
+            appendln()
+        }
+
+        +"}"
+    }
+
     override fun toString(): String {
         return buildString {
             appendln(name + ":")
 
-            appendln("\tPrimary Key(s): ${primaryKeys.filter { it.key !in blacklisted }.sortedBy { it.index }.joinToString(", ")}")
+            appendln("\tPrimary Key: ${
+            when (primaryKeys.size) {
+                0 -> "None"
+                1 -> primaryKey.key.name
+                else -> primaryKeys.joinToString(", ") { it.key.name }
+            }
+            }")
             appendln()
 
             columns.forEach {
@@ -347,7 +581,7 @@ class Table(
 
         if (name != other.name) return false
         if (columns != other.columns) return false
-        if (primaryKeys != other.primaryKeys) return false
+        if (primaryKey != other.primaryKey) return false
         if (_foreignKeys != other._foreignKeys) return false
         if (_referencingKeys != other._referencingKeys) return false
         if (objectDisplayName != other.objectDisplayName) return false
@@ -360,7 +594,7 @@ class Table(
     override fun hashCode(): Int {
         var result = name.hashCode()
         result = 31 * result + columns.hashCode()
-        result = 31 * result + primaryKeys.hashCode()
+        result = 31 * result + primaryKey.hashCode()
         result = 31 * result + _foreignKeys.hashCode()
         result = 31 * result + _referencingKeys.hashCode()
         result = 31 * result + objectDisplayName.hashCode()
@@ -386,7 +620,9 @@ class Table(
 
                         val type = when {
                             typeName == "integer" -> Type.IntType.withData()
-                            typeName == "double" -> Type.FloatType.withData()
+                            typeName == "double" -> Type.DoubleType.withData()
+                            typeName == "real" -> Type.FloatType.withData()
+                            typeName == "float" -> Type.FloatType.withData()
                             typeName == "varchar" && data == "text" -> Type.Text.withData()
                             typeName == "varchar" -> Type.Varchar.withData(dataSize)
                             typeName == "bigint" -> Type.LongType.withData()

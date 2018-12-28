@@ -1,15 +1,16 @@
 package com.rnett.daogen.ddl
 
-enum class Type(val database: String, val kotlin: String, val kotlinType: String, val params: Int = 0) {
+enum class Type(val database: String, val kotlin: String, val kotlinType: String, val params: Int = 0, val fromString: String = ".to$kotlinType()") {
     //TODO support for type name aliases, e.g. real and float
     IntType("int", "integer", "Int"),
     LongType("bigint", "long", "Long"),
     FloatType("float", "float", "Float"),
     DoubleType("double precision", "double", "Double"),
-    Decimal("decimal(\$1, \$2)", "decimal(\$name, \$1, \$2)", "BigDecimal", 2),//TODO w/ params
+    RealType("real", "double", "Double"),
+    Decimal("decimal(\$1, \$2)", "decimal(\$name, \$1, \$2)", "Double", 2),//TODO only do shenanigans if using multiplatform
     Bool("boolean", "bool", "Boolean"),
-    Char("char", "char", "Char"),
-    Varchar("varchar(\$1)", "varchar(\$name, \$1)", "String", 1),//TODO w/ param
+    Char("char", "char", "Char", fromString = "[0]"),
+    Varchar("varchar(\$1)", "varchar(\$name, \$1)", "String", 1),
     Text("text", "text", "String"),
     Unknown("", "//TODO unknown type", "String")
     //TODO more advanced types
