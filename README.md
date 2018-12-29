@@ -1,5 +1,4 @@
-![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-green.svg)
-![Version 2.0.0-beta](https://img.shields.io/badge/beta-2.0.0-green.svg)
+![Version 2.0.0](https://img.shields.io/badge/version-2.0.0-green.svg)
 
 # Exposed DAO Code Generator
 

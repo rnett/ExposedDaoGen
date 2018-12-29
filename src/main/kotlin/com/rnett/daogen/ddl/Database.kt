@@ -87,8 +87,12 @@ data class GenerationOptions(
         var serializationIncludeColumns: Boolean = true,
         var doDao: Boolean = true,
         var multiplatform: Boolean = true,
-        var nullableByDefault: Boolean = false
-)
+        var nullableByDefault: Boolean = false,
+        var dataTransfer: Boolean = true,
+        var requestClientQualifiedName: String = "unknown"
+) {
+    val requestClientName get() = requestClientQualifiedName.substringAfterLast('.')
+}
 
 @ExperimentalContracts
 fun Database.generateKotlin(options: GenerationOptions, exportFilePath: String = "") = buildString {
@@ -113,6 +117,12 @@ import kotlinx.serialization.internal.HexConverter
 import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
+    /*
+    if(options.dataTransfer){
+        appendln("import kotlinx.serialization.internal.IntSerializer")
+        appendln("import kotlinx.serialization.internal.LongSerializer")
+    }
+    */
 
     appendln()
 
@@ -141,6 +151,12 @@ import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
 
+    if (options.dataTransfer && options.requestClientQualifiedName.isNotBlank())
+        appendln("import ${options.requestClientQualifiedName}")
+
+    if (options.dataTransfer)
+        appendln("import com.rnett.kframe.data.callEndpoint")
+
     appendln()
 
     this@generateKotlinJS.tables.forEach {
@@ -166,7 +182,29 @@ import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
 
+    if (options.dataTransfer) {
+
+        appendln("import kotlinx.serialization.internal.*")
+        appendln("import kotlinx.serialization.list")
+        appendln("import com.rnett.kframe.data.EndpointManager")
+        appendln("import com.rnett.kframe.data.addEndpoint")
+
+        this@generateKotlinCommon.tables.filter { it.canMakeClass }.forEach {
+            appendln("import ${options.outPackage}.${it.classDisplayName}")
+        }
+    }
+
     appendln()
+
+    appendln("fun initEndpoints(){")
+
+    this@generateKotlinCommon.tables.filter { it.canMakeClass }.forEach {
+        it.makeEndpointAdd().forEach {
+            appendln("\t$it")
+        }
+        appendln("\t")
+    }
+    appendln("}")
 
     this@generateKotlinCommon.tables.forEach {
         try {
@@ -215,6 +253,9 @@ import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
 
+            if (options.dataTransfer && it.canMakeClass)
+                appendln("import kotlinx.serialization.internal.${it.pkType}Serializer")
+
             appendln()
 
             try {
@@ -244,6 +285,12 @@ import kotlinx.serialization.internal.HexConverter
 import kotlinx.serialization.internal.StringDescriptor
 import kotlinx.serialization.internal.SerialClassDescImpl
     """.trimIndent())
+
+            if (options.dataTransfer)
+                appendln("import com.rnett.kframe.data.callEndpoint")
+
+            if (options.dataTransfer && options.requestClientQualifiedName.isNotBlank())
+                appendln("import ${options.requestClientQualifiedName}")
 
             appendln()
 
@@ -284,4 +331,50 @@ import kotlinx.serialization.internal.SerialClassDescImpl
 
         })
     }
+
+    val out = File(packageBase.path.trimEnd('/') + "/RegisterEndpoints.kt")
+    out.createNewFile()
+    out.writeText(buildString {
+        appendln("\npackage ${options.outPackage}\n")
+
+        appendln()
+
+        if (options.serialization)
+            appendln("""
+import kotlinx.serialization.*
+import kotlinx.serialization.internal.HexConverter
+import kotlinx.serialization.internal.StringDescriptor
+import kotlinx.serialization.internal.SerialClassDescImpl
+    """.trimIndent())
+
+        if (options.dataTransfer) {
+
+            appendln("import kotlinx.serialization.list")
+            appendln("import com.rnett.kframe.data.EndpointManager")
+            appendln("import com.rnett.kframe.data.addEndpoint")
+
+            tables.filter { it.canMakeClass }.forEach {
+                appendln("import ${options.outPackage}.${it.classDisplayName}")
+            }
+
+            appendln("import kotlinx.serialization.internal.*")
+        }
+
+        appendln()
+
+        appendln("fun initEndpoints(){")
+
+        tables.filter { it.canMakeClass }.forEach {
+            it.makeEndpointAdd().forEach {
+                appendln("\t$it")
+            }
+            appendln("\t")
+        }
+        appendln("}")
+    })
 }
+
+/*
+    TODO imports:
+        com.rnett.ligraph.eve.sde.requestClient
+ */
