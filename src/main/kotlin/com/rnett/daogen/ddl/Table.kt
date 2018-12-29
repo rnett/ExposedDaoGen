@@ -234,6 +234,10 @@ class Table(
                     else -> "<ERROR>"
                 }
 
+
+                if(options.serialization)
+                    appendln("@Serializable(with=$classDisplayName.Companion::class)")
+
                 appendln("${if (options.multiplatform) "actual " else ""}class $classDisplayName(${if (options.serialization) "val myId" else "id"}: EntityID<$keyType>) : ${keyType}Entity(${if (options.serialization) "myId" else "id"}) {\n")
 
                 if (options.serialization)
@@ -387,6 +391,9 @@ class Table(
         if (pkType == PKType.Composite || pkType == PKType.Other)
             return@advancedBuildString
 
+        if(options.serialization)
+            appendln("@Serializable(with=$classDisplayName.Companion::class)")
+
         +"expect class $classDisplayName"
         codeBlock {
             columns.values.filter { it !in blacklisted }.forEach {
@@ -428,6 +435,8 @@ class Table(
         if (pkType == PKType.Composite || pkType == PKType.Other)
             return@advancedBuildString
 
+        if(options.serialization)
+            appendln("@Serializable(with=$classDisplayName.Companion::class)")
         +"actual data class $classDisplayName("
         +"\t${columns.values.filter { it !in blacklisted }.joinToString(",\n\t") { it.makeForJS() }}"
         /*
