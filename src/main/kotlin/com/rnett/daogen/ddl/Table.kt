@@ -462,17 +462,19 @@ class Table(
                         +"fun getItem(id: $pkType): $classDisplayName"
                         +"fun allItems(): List<$classDisplayName>"
 
-                        appendln()
+                        +""
 
                         foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
                             +it.makeCommonFKGetterFun()
                         }
 
+                        +""
+
                         referencingKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
                             +it.makeCommonRKGetterFun()
                         }
 
-                        appendln()
+                        +""
                         //TODO ways to get forigen/referencing key objects
                     }
 

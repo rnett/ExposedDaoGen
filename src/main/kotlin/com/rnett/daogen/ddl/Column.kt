@@ -357,7 +357,7 @@ class ForigenKey(
     fun makeJSRKGetterFun() = "actual fun $rkGetterName(item: ${toTable.classDisplayName}): List<${fromTable.classDisplayName}>" +
             " = callEndpoint(this::$rkGetterName, requestClient, item)"
 
-    fun makeCommonRKGetterFun() = "actual fun $rkGetterName(item: ${toTable.classDisplayName}): List<${fromTable.classDisplayName}>"
+    fun makeCommonRKGetterFun() = "fun $rkGetterName(item: ${toTable.classDisplayName}): List<${fromTable.classDisplayName}>"
 
 
     fun registerCommonRKGetterFun() = "EndpointManager.addEndpoint(${toTable.classDisplayName}.Companion::$rkGetterName, ${fromTable.classDisplayName}.list, ${toTable.classDisplayName})"
