@@ -485,6 +485,11 @@ class Table(
                 }
             }
         }
+
+        +"operator fun ${classDisplayName}.Companion.get(id: $pkType) = getItem(id)"
+        +"operator fun ${classDisplayName}.Companion.invoke() = allItems()"
+        +""
+
     }
 
     @ExperimentalContracts
