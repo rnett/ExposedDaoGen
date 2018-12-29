@@ -198,10 +198,19 @@ import kotlinx.serialization.internal.SerialClassDescImpl
 
     appendln("fun registerEndpoints(){")
 
-    this@generateKotlinCommon.tables.filter { it.canMakeClass }.forEach {
-        it.makeEndpointAdd().forEach {
+    tables.filter { it.canMakeClass }.forEach { table ->
+        table.makeEndpointAdd().forEach {
             appendln("\t$it")
         }
+
+        table.foreignKeys.filter { it !in table.blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+            appendln("\t${it.registerCommonFKGetterFun()}")
+        }
+
+        table.referencingKeys.filter { it !in table.blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+            appendln("\t${it.registerCommonRKGetterFun()}")
+        }
+
         appendln("\t")
     }
     appendln("}")
@@ -364,10 +373,19 @@ import kotlinx.serialization.internal.SerialClassDescImpl
 
         appendln("fun registerEndpoints(){")
 
-        tables.filter { it.canMakeClass }.forEach {
-            it.makeEndpointAdd().forEach {
+        tables.filter { it.canMakeClass }.forEach { table ->
+            table.makeEndpointAdd().forEach {
                 appendln("\t$it")
             }
+
+            table.foreignKeys.filter { it !in table.blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                appendln("\t${it.registerCommonFKGetterFun()}")
+            }
+
+            table.referencingKeys.filter { it !in table.blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                appendln("\t${it.registerCommonRKGetterFun()}")
+            }
+
             appendln("\t")
         }
         appendln("}")

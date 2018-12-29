@@ -256,6 +256,19 @@ class Table(
                     if (options.dataTransfer) {
                         +"\t\tactual fun getItem(id: $pkType) = transaction{ super.get(id) }"
                         +"\t\tactual fun allItems() = transaction{ super.all().toList() }"
+                        appendln()
+
+                        foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                            +"\t\t${it.makeJvmFKGetterFun()}"
+                        }
+
+                        appendln()
+
+                        referencingKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                            +"\t\t${it.makeJvmRKGetterFun()}"
+                        }
+
+                        appendln()
                     }
 
                     if (!options.serializationIncludeColumns) {
@@ -415,6 +428,23 @@ class Table(
                 +it.makeReferencingForCommon()
             }*/
             +""
+
+
+            if (options.dataTransfer) {
+
+                foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                    +it.commonFKVal()
+                }
+
+                appendln()
+
+                referencingKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                    +it.commonRKVal()
+                }
+
+                appendln()
+            }
+
             +"override fun equals(other: Any?): Boolean"
             +"override fun hashCode(): Int"
             if (columns.values.filter { it.isNameColumn }.size == 1)
@@ -431,6 +461,18 @@ class Table(
                     if (options.dataTransfer) {
                         +"fun getItem(id: $pkType): $classDisplayName"
                         +"fun allItems(): List<$classDisplayName>"
+
+                        appendln()
+
+                        foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                            +"\t\t${it.makeCommonFKGetterFun()}"
+                        }
+
+                        referencingKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                            +"\t\t${it.makeCommonRKGetterFun()}"
+                        }
+
+                        appendln()
                         //TODO ways to get forigen/referencing key objects
                     }
 
@@ -459,6 +501,22 @@ class Table(
         */
         +"){"
 
+        if (options.dataTransfer) {
+            appendln()
+
+            foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                +"\t${it.jsFKVal()}"
+            }
+
+            appendln()
+
+            foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                +"\t${it.jsRKVal()}"
+            }
+
+            appendln()
+        }
+
         appendln("\tactual override fun equals(other: Any?): Boolean {")
         appendln("\t\tif(other == null || other !is $classDisplayName)")
         appendln("\t\t\treturn false")
@@ -484,6 +542,20 @@ class Table(
             if (options.dataTransfer) {
                 +"\t\tactual fun getItem(id: $pkType): $classDisplayName = callEndpoint(this::getItem, ${options.requestClientName}, id)"
                 +"\t\tactual fun allItems(): List<$classDisplayName> = callEndpoint(this::allItems, ${options.requestClientName})"
+
+                appendln()
+
+                foreignKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                    +"\t\t${it.makeJSFKGetterFun()}"
+                }
+
+                appendln()
+
+                referencingKeys.filter { it !in blacklisted && it.toTable.canMakeClass && it.fromTable.canMakeClass }.forEach {
+                    +"\t\t${it.makeJSRKGetterFun()}"
+                }
+
+                appendln()
             }
 
             if (!options.serializationIncludeColumns) {

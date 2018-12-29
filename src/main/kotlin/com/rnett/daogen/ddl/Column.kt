@@ -270,15 +270,24 @@ class ForigenKey(
 
     //TODO mutable.  class fk only?
 
-    fun makeReferencingForClass(options: GenerationOptions): String = "${/*if(options.multiplatform) "actual " else*/ ""}val $rkClassName: SizedIterable<${fromTable.classDisplayName}> by ${fromTable.classDisplayName} " +
-            (if (useNullable(options)) "optionalReferrersOn" else "referrersOn") +
-            " ${fromTable.objectDisplayName}.$fkObjectName"
+    fun makeReferencingForClass(options: GenerationOptions): String =
+            if (!options.dataTransfer)
+                "val $rkClassName: SizedIterable<${fromTable.classDisplayName}> by ${fromTable.classDisplayName} " +
+                        (if (useNullable(options)) "optionalReferrersOn" else "referrersOn") +
+                        " ${fromTable.objectDisplayName}.$fkObjectName"
+            else
+                buildString {
+                    appendln("val _$rkClassName: SizedIterable<${fromTable.classDisplayName}> by ${fromTable.classDisplayName} " +
+                            (if (useNullable(options)) "optionalReferrersOn" else "referrersOn") +
+                            " ${fromTable.objectDisplayName}.$fkObjectName")
+                    appendln("\tval $rkClassName: List<${fromTable.classDisplayName}> get() = _$rkClassName.toList()")
+                }
 
     fun makeForeignForObject(options: GenerationOptions) = "val $fkObjectName = " +
             (if (useNullable(options)) "optReference" else "reference") +
             "(\"${fromColumn.name}\", ${toTable.objectDisplayName})"
 
-    fun makeForeignForClass(options: GenerationOptions) = "${/*if(options.multiplatform) "actual " else*/ ""}${if (mutable) "var" else "val"} $fkClassName: ${toTable.classDisplayName + if (useNullable(options)) "?" else ""} by ${toTable.classDisplayName} " +
+    fun makeForeignForClass(options: GenerationOptions) = "${if (options.multiplatform && options.dataTransfer) "actual " else ""}${if (mutable) "var" else "val"} $fkClassName: ${toTable.classDisplayName + if (useNullable(options)) "?" else ""} by ${toTable.classDisplayName} " +
             (if (useNullable(options)) "optionalReferencedOn" else "referencedOn") +
             " ${fromTable.objectDisplayName}.$fkObjectName"
 
@@ -314,7 +323,7 @@ class ForigenKey(
         result = 31 * result + mutable.hashCode()
         return result
     }
-
+    /*
     fun makeForeignForJS() = "actual ${if (mutable) "var" else "val"} $fkClassName: ${toTable.classDisplayName}" +
             (if (nullable) "?" else "")
 
@@ -324,8 +333,42 @@ class ForigenKey(
             (if (nullable) "?" else "")
 
     fun makeReferencingForCommon() = "expect val $rkClassName: SizedIterable<${fromTable.classDisplayName}>"
+    */
+
+    val fkGetterName get() = "get${String(fkClassName.toByteArray()).toCharArray().also { it[0] = it[0].toUpperCase() }}"
+    val rkGetterName get() = "get${String(rkClassName.toByteArray()).toCharArray().also { it[0] = it[0].toUpperCase() }}"
+
+    fun makeJvmFKGetterFun() = "actual fun $fkGetterName(item: ${fromTable.classDisplayName}): ${toTable.classDisplayName}" +
+            " = transaction{ item.$fkClassName }"
+
+    fun makeJSFKGetterFun() = "actual fun $fkGetterName(item: ${fromTable.classDisplayName}): ${toTable.classDisplayName}" +
+            " = callEndpoint(this::$fkGetterName, requestClient, item)"
+
+    fun makeCommonFKGetterFun() = "expect fun $fkGetterName(item: ${fromTable.classDisplayName}): ${toTable.classDisplayName}"
+
+    fun registerCommonFKGetterFun() = "EndpointManager.addEndpoint(${fromTable.classDisplayName}.Companion::$fkGetterName, ${toTable.classDisplayName}, ${fromTable.classDisplayName})"
+
+    fun commonFKVal() = "val $fkClassName: ${toTable.classDisplayName}"
+    fun jsFKVal() = "actual val $fkClassName: ${toTable.classDisplayName} get() = $fkGetterName(this)"
+
+    fun makeJvmRKGetterFun() = "actual fun $rkGetterName(item: ${toTable.classDisplayName}): List<${fromTable.classDisplayName}>" +
+            " = transaction{ item.$rkClassName }"
+
+    fun makeJSRKGetterFun() = "actual fun $rkGetterName(item: ${toTable.classDisplayName}): List<${fromTable.classDisplayName}>" +
+            " = callEndpoint(this::$rkGetterName, requestClient, item)"
+
+    fun makeCommonRKGetterFun() = "actual fun $rkGetterName(item: ${toTable.classDisplayName}): List<${fromTable.classDisplayName}>"
+
+
+    fun registerCommonRKGetterFun() = "EndpointManager.addEndpoint(${toTable.classDisplayName}.Companion::$rkGetterName, ${fromTable.classDisplayName}.list, ${toTable.classDisplayName})"
+
+    fun commonRKVal() = "val $rkClassName: List<${fromTable.classDisplayName}>"
+    fun jsRKVal() = "actual val $rkClassName: List<${fromTable.classDisplayName}> get() = $rkGetterName(this)"
+
 
     val fkClassDisplay get() = FKDisplay(false)
     val fkObjectDisplay get() = FKDisplay(true)
     val rkDisplay get() = RKDisplay()
 }
+
+//TODO dataTransfer for nullables, nullable FKs
