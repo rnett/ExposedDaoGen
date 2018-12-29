@@ -280,7 +280,7 @@ class ForigenKey(
                     appendln("val _$rkClassName: SizedIterable<${fromTable.classDisplayName}> by ${fromTable.classDisplayName} " +
                             (if (useNullable(options)) "optionalReferrersOn" else "referrersOn") +
                             " ${fromTable.objectDisplayName}.$fkObjectName")
-                    appendln("\tval $rkClassName: List<${fromTable.classDisplayName}> get() = _$rkClassName.toList()")
+                    appendln("\tactual val $rkClassName: List<${fromTable.classDisplayName}> get() = _$rkClassName.toList()")
                 }
 
     fun makeForeignForObject(options: GenerationOptions) = "val $fkObjectName = " +
@@ -344,7 +344,7 @@ class ForigenKey(
     fun makeJSFKGetterFun() = "actual fun $fkGetterName(item: ${fromTable.classDisplayName}): ${toTable.classDisplayName}" +
             " = callEndpoint(this::$fkGetterName, requestClient, item)"
 
-    fun makeCommonFKGetterFun() = "expect fun $fkGetterName(item: ${fromTable.classDisplayName}): ${toTable.classDisplayName}"
+    fun makeCommonFKGetterFun() = "fun $fkGetterName(item: ${fromTable.classDisplayName}): ${toTable.classDisplayName}"
 
     fun registerCommonFKGetterFun() = "EndpointManager.addEndpoint(${fromTable.classDisplayName}.Companion::$fkGetterName, ${toTable.classDisplayName}, ${fromTable.classDisplayName})"
 
