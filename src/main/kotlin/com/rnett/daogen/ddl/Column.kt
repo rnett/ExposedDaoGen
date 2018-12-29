@@ -335,8 +335,8 @@ class ForigenKey(
     fun makeReferencingForCommon() = "expect val $rkClassName: SizedIterable<${fromTable.classDisplayName}>"
     */
 
-    val fkGetterName get() = "get${String(fkClassName.toByteArray()).toCharArray().also { it[0] = it[0].toUpperCase() }}"
-    val rkGetterName get() = "get${String(rkClassName.toByteArray()).toCharArray().also { it[0] = it[0].toUpperCase() }}"
+    val fkGetterName get() = "get${String(fkClassName.toCharArray().also { it[0] = it[0].toUpperCase() })}"
+    val rkGetterName get() = "get${String(rkClassName.toCharArray().also { it[0] = it[0].toUpperCase() })}"
 
     fun makeJvmFKGetterFun() = "actual fun $fkGetterName(item: ${fromTable.classDisplayName}): ${toTable.classDisplayName}" +
             " = transaction{ item.$fkClassName }"
