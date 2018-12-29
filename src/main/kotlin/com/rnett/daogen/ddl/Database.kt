@@ -196,7 +196,7 @@ import kotlinx.serialization.internal.SerialClassDescImpl
 
     appendln()
 
-    appendln("fun initEndpoints(){")
+    appendln("fun registerEndpoints(){")
 
     this@generateKotlinCommon.tables.filter { it.canMakeClass }.forEach {
         it.makeEndpointAdd().forEach {
@@ -362,7 +362,7 @@ import kotlinx.serialization.internal.SerialClassDescImpl
 
         appendln()
 
-        appendln("fun initEndpoints(){")
+        appendln("fun registerEndpoints(){")
 
         tables.filter { it.canMakeClass }.forEach {
             it.makeEndpointAdd().forEach {
