@@ -119,6 +119,7 @@ class Table(
             val t = Table(name, columns.toSet(), pks.map { pair -> PrimaryKey(pair.second, columns.find { it.name == pair.first }!!) }.toSet(), parent)
             t.classDisplayName = className
             t.objectDisplayName = objectName
+            t.makeConstructor = makeConstructor
 
             return t
         }
@@ -193,9 +194,9 @@ class Table(
 
                     primaryKeys.find { pk -> pk.key == it }?.apply {
                         if (primaryKeys.count() > 1)
-                            append(".primaryKey($index)")
+                            append("//.primaryKey($index)")
                         else
-                            append(".primaryKey()")
+                            append("//.primaryKey()")
                     }
                     +""
                 }
@@ -279,7 +280,7 @@ class Table(
 
                         append("\t\t")
                         appendln("${if (options.multiplatform) "actual " else ""}override fun serialize(output: Encoder, obj: $classDisplayName) {")
-                        appendln("\t\t\toutput.encodeString(HexConverter.printHexBinary(obj.${primaryKey.key.name}.toString().toUtf8Bytes()))")
+                        appendln("\t\t\toutput.encodeString(HexConverter.printHexBinary(obj.${primaryKey.key.classDisplayName}.toString().toUtf8Bytes()))")
                         appendln("\t\t}\n")
 
                         append("\t\t")
@@ -296,7 +297,7 @@ class Table(
                         appendln("${if (options.multiplatform) "actual " else ""}override val descriptor: SerialDescriptor = object : SerialClassDescImpl(\"$classDisplayName\") {")
                         appendln("\t\t\tinit{")
                         indicies.entries.sortedBy { it.key }.forEach {
-                            appendln("\t\t\t\taddElement(\"${it.value.name}\")")
+                            appendln("\t\t\t\taddElement(\"${it.value.classDisplayName}\")")
                         }
                         appendln("\t\t\t}")
                         appendln("\t\t}\n")
@@ -305,7 +306,7 @@ class Table(
                         appendln("${if (options.multiplatform) "actual " else ""}override fun serialize(output: Encoder, obj: $classDisplayName) {")
                         appendln("\t\t\tval compositeOutput: CompositeEncoder = output.beginStructure(descriptor)")
                         indicies.entries.sortedBy { it.key }.forEach {
-                            appendln("\t\t\tcompositeOutput.encodeStringElement(descriptor, ${it.key}, HexConverter.printHexBinary(obj.${it.value.name}.toString().toUtf8Bytes()))")
+                            appendln("\t\t\tcompositeOutput.encodeStringElement(descriptor, ${it.key}, HexConverter.printHexBinary(obj.${it.value.classDisplayName}.toString().toUtf8Bytes()))")
                         }
                         appendln("\t\t\tcompositeOutput.endStructure(descriptor)")
                         appendln("\t\t}\n")
@@ -324,7 +325,7 @@ class Table(
                         appendln("\t\t\t}\n")
                         appendln("\t\t\tinp.endStructure(descriptor)")
                         appendln("\t\t\tif(id == null)")
-                        appendln("\t\t\t\tthrow SerializationException(\"Id '${primaryKey.key.name}' @ index $pkIndex not found\")")
+                        appendln("\t\t\t\tthrow SerializationException(\"Id '${primaryKey.key.classDisplayName}' @ index $pkIndex not found\")")
                         appendln("\t\t\telse")
                         appendln("\t\t\t\treturn $classDisplayName[id]")
 
@@ -340,10 +341,10 @@ class Table(
                 if (makeConstructor) {
                     append("\t\t")
                     appendln("fun new(${columns.values.filter { it !in blacklisted }.joinToString(", ") {
-                        "${it.name}: ${it.type.type.kotlinType}"
+                        "${it.classDisplayName}: ${it.type.type.kotlinType}"
                     }}) = new {")
                     columns.values.filter { it !in blacklisted }.forEach {
-                        appendln("\t\t\t_${it.name} = ${it.name}")
+                        appendln("\t\t\tthis.${it.classDisplayName} = ${it.classDisplayName}")
                     }
                     appendln("\t\t}")
                 }
@@ -387,16 +388,16 @@ class Table(
                 appendln("\t\tif(other == null || other !is $classDisplayName)")
                 appendln("\t\t\treturn false")
                 appendln()
-                appendln("\t\treturn ${primaryKey.key.name} == other.${primaryKey.key.name}")
+                appendln("\t\treturn ${primaryKey.key.classDisplayName} == other.${primaryKey.key.classDisplayName}")
                 appendln("\t}")
 
                 appendln("\n")
-                appendln("\t${if (options.multiplatform) "actual " else ""}override fun hashCode() = ${primaryKey.key.name}${if (pkType == PKType.Long) ".hashCode()" else ""} ")
+                appendln("\t${if (options.multiplatform) "actual " else ""}override fun hashCode() = ${primaryKey.key.classDisplayName}${if (pkType == PKType.Long) ".hashCode()" else ""} ")
 
                 appendln("\n")
 
                 if (columns.values.filter { it.isNameColumn }.size == 1)
-                    appendln("\t${if (options.multiplatform) "actual " else ""}override fun toString() = ${columns.values.find { it.isNameColumn }!!.name}")
+                    appendln("\t${if (options.multiplatform) "actual " else ""}override fun toString() = ${columns.values.find { it.isNameColumn }!!.classDisplayName}")
 
                 appendln("}")
 
@@ -416,7 +417,7 @@ class Table(
         +"expect class $classDisplayName"
         codeBlock {
             columns.values.filter { it !in blacklisted }.forEach {
-                +it.makeForCommon()
+                +it.makeForCommon(makeConstructor)
             }
             //TODO figure out how I want to handle references.  (probably using kframe-data to make the get operator available)
 
@@ -501,7 +502,7 @@ class Table(
         if(options.serialization)
             appendln("@Serializable(with=$classDisplayName.Companion::class)")
         +"actual data class $classDisplayName("
-        +"\t${columns.values.filter { it !in blacklisted }.joinToString(",\n\t") { it.makeForJS() }}"
+        +"\t${columns.values.filter { it !in blacklisted }.joinToString(",\n\t") { it.makeForJS(makeConstructor) }}"
         /*
         +"\t${foreignKeys.filter { it !in blacklisted }.joinToString(",\n\t") { it.makeForeignForJS() }}"
         +"\t${referencingKeys.filter { it !in blacklisted }.joinToString(",\n\t") { it.makeReferencingForJS() }}"
@@ -530,16 +531,16 @@ class Table(
         appendln("\t\tif(other == null || other !is $classDisplayName)")
         appendln("\t\t\treturn false")
         appendln()
-        appendln("\t\treturn ${primaryKey.key.name} == other.${primaryKey.key.name}")
+        appendln("\t\treturn ${primaryKey.key.classDisplayName} == other.${primaryKey.key.classDisplayName}")
         appendln("\t}")
 
         appendln("\n")
-        appendln("\tactual override fun hashCode() = ${primaryKey.key.name}${if (pkType == PKType.Long) ".hashCode()" else ""}")
+        appendln("\tactual override fun hashCode() = ${primaryKey.key.classDisplayName}${if (pkType == PKType.Long) ".hashCode()" else ""}")
 
         appendln("\n")
 
         if (columns.values.filter { it.isNameColumn }.size == 1)
-            appendln("\tactual override fun toString() = ${columns.values.find { it.isNameColumn }!!.name}")
+            appendln("\tactual override fun toString() = ${columns.values.find { it.isNameColumn }!!.classDisplayName}")
 
         +""
 
@@ -575,7 +576,7 @@ class Table(
 
                 append("\t\t")
                 appendln("actual override fun serialize(output: Encoder, obj: $classDisplayName) {")
-                appendln("\t\t\toutput.encodeString(HexConverter.printHexBinary(obj.${primaryKey.key.name}.toString().toUtf8Bytes()))")
+                appendln("\t\t\toutput.encodeString(HexConverter.printHexBinary(obj.${primaryKey.key.classDisplayName}.toString().toUtf8Bytes()))")
                 appendln("\t\t}\n")
 
                 append("\t\t")
@@ -592,7 +593,7 @@ class Table(
                 appendln("actual override val descriptor: SerialDescriptor = object : SerialClassDescImpl(\"$classDisplayName\") {")
                 appendln("\t\t\tinit{")
                 indicies.entries.sortedBy { it.key }.forEach {
-                    appendln("\t\t\t\taddElement(\"${it.value.name}\")")
+                    appendln("\t\t\t\taddElement(\"${it.value.classDisplayName}\")")
                 }
                 appendln("\t\t\t}")
                 appendln("\t\t}\n")
@@ -601,7 +602,7 @@ class Table(
                 appendln("actual override fun serialize(output: Encoder, obj: $classDisplayName) {")
                 appendln("\t\t\tval compositeOutput: CompositeEncoder = output.beginStructure(descriptor)")
                 indicies.entries.sortedBy { it.key }.forEach {
-                    appendln("\t\t\tcompositeOutput.encodeStringElement(descriptor, ${it.key}, HexConverter.printHexBinary(obj.${it.value.name}.toString().toUtf8Bytes()))")
+                    appendln("\t\t\tcompositeOutput.encodeStringElement(descriptor, ${it.key}, HexConverter.printHexBinary(obj.${it.value.classDisplayName}.toString().toUtf8Bytes()))")
                 }
                 appendln("\t\t\tcompositeOutput.endStructure(descriptor)")
                 appendln("\t\t}\n")
@@ -611,7 +612,7 @@ class Table(
                 appendln("\t\t\tval inp: CompositeDecoder = input.beginStructure(descriptor)")
 
                 indicies.entries.sortedBy { it.key }.forEach {
-                    +"\t\t\tvar temp_${it.value.name}: ${it.value.type.type.kotlinType}? = null"
+                    +"\t\t\tvar temp_${it.value.classDisplayName}: ${it.value.type.type.kotlinType}? = null"
                 }
 
                 appendln("\t\t\tloop@ while (true) {")
@@ -620,7 +621,7 @@ class Table(
                 appendln("\t\t\t\t\tCompositeDecoder.READ_DONE -> break@loop")
 
                 indicies.entries.sortedBy { it.key }.forEach { (index, col) ->
-                    +"\t\t\t\t\t$index -> temp_${col.name} = stringFromUtf8Bytes(HexConverter.parseHexBinary(inp.decodeStringElement(descriptor, i)))${col.type.type.fromString}"
+                    +"\t\t\t\t\t$index -> temp_${col.classDisplayName} = stringFromUtf8Bytes(HexConverter.parseHexBinary(inp.decodeStringElement(descriptor, i)))${col.type.type.fromString}"
                 }
 
                 //appendln("\t\t\t\t\t$pkIndex -> id = HexConverter.parseHexBinary(inp.decodeStringElement(descriptor, i)).toString().toInt()")
@@ -633,7 +634,7 @@ class Table(
                 +""
 
                 appendln("\t\t\t\treturn $classDisplayName(${indicies.entries.sortedBy { it.key }.map { it.value }.joinToString(",\n\t\t\t\t", "\n\t\t\t\t", "\n\t\t\t") {
-                    "temp_${it.name} ?: throw SerializationException(\"Missing value for ${it.name}\")"
+                    "temp_${it.classDisplayName} ?: throw SerializationException(\"Missing value for ${it.classDisplayName}\")"
                 }})")
 
                 appendln("\t\t}\n")

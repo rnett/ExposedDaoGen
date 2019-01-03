@@ -63,12 +63,16 @@ data class Column(
             (if (notNull) " not null" else "") +
             if (autoIncrement) " auto increment" else ""
 
-    fun makeForCommon(): String {
-        return "${if (mutable) "var" else "val"} $classDisplayName: ${type.type.kotlinType}"
+    fun makeForCommon(internalPrivate: Boolean): String {
+        return if (internalPrivate) {
+            "var $classDisplayName: ${type.type.kotlinType}" + (if (!mutable) "\n\t\tprivate set" else "")
+        } else "${if (mutable) "var" else "val"} $classDisplayName: ${type.type.kotlinType}"
     }
 
-    fun makeForJS(): String {
-        return "actual ${if (mutable) "var" else "val"} $classDisplayName: ${type.type.kotlinType}"
+    fun makeForJS(internalPrivate: Boolean): String {
+        return /*if(internalPrivate) {
+            "actual var $classDisplayName: ${type.type.kotlinType}" + (if(!mutable) "\n\t\tprivate set" else "")
+        } else*/ "actual ${if (mutable || internalPrivate) "var" else "val"} $classDisplayName: ${type.type.kotlinType}" //TODO some way to keep internalPrivate private
     }
 
     var classDisplayName: String = name
